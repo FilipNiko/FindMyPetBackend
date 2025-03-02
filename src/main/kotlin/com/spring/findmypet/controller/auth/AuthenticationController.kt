@@ -22,7 +22,7 @@ class AuthenticationController(
         @RequestBody @Valid request: RegisterRequest
     ): ResponseEntity<ApiResponse<AuthResponse>> {
         val response = authService.register(request)
-        return ResponseEntity.ok(ApiResponse(success = true, response = response))
+        return ResponseEntity.ok(ApiResponse(success = true, result = response))
     }
 
     @PostMapping("/login")
@@ -30,6 +30,6 @@ class AuthenticationController(
         @RequestBody @Valid request: LoginRequest
     ): ResponseEntity<ApiResponse<AuthResponse>> {
         val response = authService.login(request)
-        return ResponseEntity.ok(ApiResponse(success = true, response = response))
+        return ResponseEntity.ok(ApiResponse(success = true, result = response))
     }
 } 

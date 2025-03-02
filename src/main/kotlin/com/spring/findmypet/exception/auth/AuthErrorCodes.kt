@@ -4,7 +4,6 @@ enum class AuthErrorCodes(
     val code: String,
     val message: String
 ) {
-    // Validacioni errori za ime i prezime
     FULLNAME_FIELD_REQUIRED(
         "FULLNAME_FIELD_REQUIRED",
         "Ime i prezime je obavezno polje"
@@ -14,7 +13,6 @@ enum class AuthErrorCodes(
         "Ime i prezime može sadržati samo slova i razmake"
     ),
 
-    // Validacioni errori za email
     EMAIL_FIELD_REQUIRED(
         "EMAIL_FIELD_REQUIRED",
         "Email je obavezno polje"
@@ -28,7 +26,6 @@ enum class AuthErrorCodes(
         "Email adresa je već registrovana"
     ),
 
-    // Validacioni errori za telefon
     PHONE_FIELD_REQUIRED(
         "PHONE_FIELD_REQUIRED",
         "Broj telefona je obavezno polje"
@@ -38,7 +35,6 @@ enum class AuthErrorCodes(
         "Broj telefona mora početi sa +381 ili 06"
     ),
 
-    // Validacioni errori za lozinku
     PASSWORD_FIELD_REQUIRED(
         "PASSWORD_FIELD_REQUIRED",
         "Lozinka je obavezno polje"
@@ -60,13 +56,11 @@ enum class AuthErrorCodes(
         "Lozinka mora sadržati bar jedan specijalni karakter"
     ),
 
-    // Login errori
     LOGIN_INVALID_CREDENTIALS(
         "LOGIN_INVALID_CREDENTIALS",
         "Pogrešan email ili lozinka"
     ),
 
-    // Token errori
     TOKEN_EXPIRED(
         "TOKEN_EXPIRED",
         "Token je istekao"
@@ -80,7 +74,6 @@ enum class AuthErrorCodes(
         "Token nije prosleđen"
     ),
 
-    // Sistemski errori
     AUTH_SYSTEM_ERROR(
         "AUTH_SYSTEM_ERROR",
         "Došlo je do greške prilikom autentifikacije"

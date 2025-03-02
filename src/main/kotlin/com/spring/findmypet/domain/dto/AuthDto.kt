@@ -9,9 +9,8 @@ import jakarta.validation.constraints.Size
 
 data class RegisterRequest(
     @field:NotBlank(message = ValidationMessages.FIELD_REQUIRED)
-    @field:Size(min = 2, max = 100, message = ValidationMessages.FIELD_INVALID_FORMAT)
     @field:Pattern(
-        regexp = "^[\\p{L}\\s]+\$",
+        regexp = "^[\\p{L}\\s]{2,100}$",
         message = ValidationMessages.FIELD_INVALID_FORMAT
     )
     val fullName: String,
@@ -22,7 +21,7 @@ data class RegisterRequest(
 
     @field:NotBlank(message = ValidationMessages.FIELD_REQUIRED)
     @field:Pattern(
-        regexp = "^(\\+3816|06)[0-9]{6,11}\$",
+        regexp = "^(\\+3816|06)[0-9]{6,11}$",
         message = ValidationMessages.FIELD_INVALID_FORMAT
     )
     val phoneNumber: String,

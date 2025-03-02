@@ -16,41 +16,47 @@ class AuthExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException::class)
     fun handleValidationExceptions(ex: MethodArgumentNotValidException): ResponseEntity<ApiResponse<Nothing>> {
-        val errors = ex.bindingResult.fieldErrors.mapNotNull { error ->
-            val errorCode = when (error.field) {
-                "fullName" -> when (error.defaultMessage) {
-                    ValidationMessages.FIELD_REQUIRED -> AuthErrorCodes.FULLNAME_FIELD_REQUIRED
-                    ValidationMessages.FIELD_INVALID_FORMAT -> AuthErrorCodes.FULLNAME_FIELD_INVALID_FORMAT
-                    else -> null
+        val errors = ex.bindingResult.fieldErrors
+            .groupBy { it.field }  // Grupišemo po polju
+            .mapNotNull { (field, fieldErrors) ->
+                // Za svako polje uzimamo samo prvi error po prioritetu
+                val error = fieldErrors.firstNotNullOf { error ->
+                    when (field) {
+                        "fullName" -> when {
+                            error.defaultMessage == ValidationMessages.FIELD_REQUIRED -> 
+                                AuthErrorCodes.FULLNAME_FIELD_REQUIRED
+                            else -> AuthErrorCodes.FULLNAME_FIELD_INVALID_FORMAT
+                        }
+                        "email" -> when {
+                            error.defaultMessage == ValidationMessages.FIELD_REQUIRED -> 
+                                AuthErrorCodes.EMAIL_FIELD_REQUIRED
+                            else -> AuthErrorCodes.EMAIL_FIELD_INVALID_FORMAT
+                        }
+                        "phoneNumber" -> when {
+                            error.defaultMessage == ValidationMessages.FIELD_REQUIRED -> 
+                                AuthErrorCodes.PHONE_FIELD_REQUIRED
+                            else -> AuthErrorCodes.PHONE_FIELD_INVALID_FORMAT
+                        }
+                        "password" -> when {
+                            error.defaultMessage == ValidationMessages.FIELD_REQUIRED -> 
+                                AuthErrorCodes.PASSWORD_FIELD_REQUIRED
+                            error.defaultMessage == ValidationMessages.FIELD_TOO_SHORT -> 
+                                AuthErrorCodes.PASSWORD_FIELD_TOO_SHORT
+                            error.defaultMessage == ValidationMessages.PASSWORD_MISSING_UPPERCASE -> 
+                                AuthErrorCodes.PASSWORD_FIELD_MISSING_UPPERCASE
+                            error.defaultMessage == ValidationMessages.PASSWORD_MISSING_NUMBER -> 
+                                AuthErrorCodes.PASSWORD_FIELD_MISSING_NUMBER
+                            else -> AuthErrorCodes.PASSWORD_FIELD_MISSING_SPECIAL_CHAR
+                        }
+                        else -> null
+                    }
                 }
-                "email" -> when (error.defaultMessage) {
-                    ValidationMessages.FIELD_REQUIRED -> AuthErrorCodes.EMAIL_FIELD_REQUIRED
-                    ValidationMessages.FIELD_INVALID_FORMAT -> AuthErrorCodes.EMAIL_FIELD_INVALID_FORMAT
-                    else -> null
-                }
-                "phoneNumber" -> when (error.defaultMessage) {
-                    ValidationMessages.FIELD_REQUIRED -> AuthErrorCodes.PHONE_FIELD_REQUIRED
-                    ValidationMessages.FIELD_INVALID_FORMAT -> AuthErrorCodes.PHONE_FIELD_INVALID_FORMAT
-                    else -> null
-                }
-                "password" -> when (error.defaultMessage) {
-                    ValidationMessages.FIELD_REQUIRED -> AuthErrorCodes.PASSWORD_FIELD_REQUIRED
-                    ValidationMessages.FIELD_TOO_SHORT -> AuthErrorCodes.PASSWORD_FIELD_TOO_SHORT
-                    ValidationMessages.PASSWORD_MISSING_UPPERCASE -> AuthErrorCodes.PASSWORD_FIELD_MISSING_UPPERCASE
-                    ValidationMessages.PASSWORD_MISSING_NUMBER -> AuthErrorCodes.PASSWORD_FIELD_MISSING_NUMBER
-                    ValidationMessages.PASSWORD_MISSING_SPECIAL_CHAR -> AuthErrorCodes.PASSWORD_FIELD_MISSING_SPECIAL_CHAR
-                    else -> null
-                }
-                else -> null
-            }
 
-            errorCode?.let {
                 ApiError(
-                    errorCode = it.code,
-                    errorDescription = it.message
+                    errorCode = error.code,
+                    errorDescription = error.message
                 )
             }
-        }.distinctBy { it.errorCode }
 
         return ResponseEntity
             .badRequest()
