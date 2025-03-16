@@ -34,6 +34,7 @@ class SecurityConfig(
                 auth
                     .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                     .requestMatchers("/api/v1/auth/**").permitAll()
+                    .requestMatchers("/uploads/**").permitAll()
                     .requestMatchers(
                         "/v2/api-docs",
                         "/v3/api-docs",

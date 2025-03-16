@@ -12,7 +12,10 @@ import jakarta.annotation.PostConstruct
 @Service
 class FileStorageService(
     @Value("\${file.upload-dir}")
-    private val uploadDir: String
+    private val uploadDir: String,
+
+    @Value("\${file.upload-path}")
+    private val baseUploadPath: String
 ) {
     private lateinit var uploadPath: Path
 
@@ -34,15 +37,15 @@ class FileStorageService(
         }
 
         val fileName = "${UUID.randomUUID()}.$fileExtension"
-
         val targetLocation = uploadPath.resolve(fileName)
         Files.copy(file.inputStream, targetLocation)
 
-        return fileName
+        return "$baseUploadPath/$fileName"
     }
 
     fun deleteFile(fileName: String) {
-        val filePath = uploadPath.resolve(fileName)
+        val actualFileName = fileName.substringAfterLast('/')
+        val filePath = uploadPath.resolve(actualFileName)
         Files.deleteIfExists(filePath)
     }
 
