@@ -5,6 +5,7 @@ import com.spring.findmypet.domain.dto.ReportLostPetRequest
 import com.spring.findmypet.domain.model.LostPet
 import com.spring.findmypet.domain.model.User
 import com.spring.findmypet.repository.LostPetRepository
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
@@ -12,40 +13,58 @@ import org.springframework.transaction.annotation.Transactional
 class LostPetService(
     private val lostPetRepository: LostPetRepository
 ) {
+    private val logger = LoggerFactory.getLogger(LostPetService::class.java)
 
     @Transactional
     fun reportLostPet(request: ReportLostPetRequest, user: User): LostPetResponse {
-        val lostPet = LostPet(
-            user = user,
-            petType = request.petType,
-            title = request.title,
-            breed = request.breed,
-            color = request.color,
-            description = request.description,
-            gender = request.gender,
-            hasChip = request.hasChip,
-            address = request.address,
-            latitude = request.latitude,
-            longitude = request.longitude,
-            photos = request.photos
-        )
+        logger.info("Započinjem kreiranje prijave izgubljenog ljubimca za korisnika: ${user.username}")
+        logger.debug("Detalji zahteva: $request")
+        
+        try {
+            val photoNames = request.photos.map { url -> 
+                logger.debug("Procesiranje URL-a fotografije: $url")
+                url.substringAfterLast("/").also { 
+                    logger.debug("Ekstrahovan naziv fajla: $it") 
+                }
+            }
+            
+            val lostPet = LostPet(
+                user = user,
+                petType = request.petType,
+                title = request.title,
+                breed = request.breed,
+                color = request.color,
+                description = request.description,
+                gender = request.gender,
+                hasChip = request.hasChip,
+                address = request.address,
+                latitude = request.latitude,
+                longitude = request.longitude,
+                photos = photoNames
+            )
 
-        val savedPet = lostPetRepository.save(lostPet)
+            logger.debug("Kreiran objekat izgubljenog ljubimca: $lostPet")
+            val savedPet = lostPetRepository.save(lostPet)
+            logger.info("Uspešno sačuvana prijava izgubljenog ljubimca sa ID: ${savedPet.id}")
 
-        return LostPetResponse(
-            id = savedPet.id,
-            petType = savedPet.petType,
-            title = savedPet.title,
-            breed = savedPet.breed,
-            color = savedPet.color,
-            description = savedPet.description,
-            gender = savedPet.gender,
-            hasChip = savedPet.hasChip,
-            address = savedPet.address,
-            latitude = savedPet.latitude,
-            longitude = savedPet.longitude,
-            photos = savedPet.photos,
-            userId = savedPet.user.id ?: throw IllegalStateException("User ID is null")
-        )
+            return LostPetResponse(
+                id = savedPet.id,
+                petType = savedPet.petType,
+                title = savedPet.title,
+                breed = savedPet.breed,
+                color = savedPet.color,
+                description = savedPet.description,
+                gender = savedPet.gender,
+                hasChip = savedPet.hasChip,
+                address = savedPet.address,
+                latitude = savedPet.latitude,
+                longitude = savedPet.longitude,
+                photos = savedPet.photos,
+                userId = savedPet.user.id ?: throw IllegalStateException("User ID is null")
+            )
+        } catch (e: Exception) {
+            logger.error("Greška prilikom kreiranja prijave izgubljenog ljubimca", e)
+            throw e
+        }
     }
 } 

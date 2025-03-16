@@ -3,14 +3,43 @@ package com.spring.findmypet.exception
 import com.spring.findmypet.domain.dto.ApiError
 import com.spring.findmypet.domain.dto.ApiResponse
 import com.spring.findmypet.domain.validation.LostPetValidationTags
+import com.fasterxml.jackson.databind.exc.InvalidFormatException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import org.springframework.core.annotation.Order
+import org.springframework.core.Ordered
 
 @RestControllerAdvice(basePackages = ["com.spring.findmypet.controller"])
+@Order(Ordered.HIGHEST_PRECEDENCE)
 class LostPetExceptionHandler {
+
+    @ExceptionHandler(InvalidFormatException::class)
+    fun handleInvalidFormatException(e: InvalidFormatException): ResponseEntity<ApiResponse<Nothing>> {
+        val errorMessage = when {
+            e.targetType.isEnum -> {
+                val enumValues = e.targetType.enumConstants.joinToString(", ") { it.toString() }
+                "Neispravna vrednost '${e.value}'. Dozvoljene vrednosti su: [$enumValues]"
+            }
+            else -> e.originalMessage
+        }
+
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(
+                ApiResponse(
+                    success = false,
+                    errors = listOf(
+                        ApiError(
+                            errorCode = LostPetErrorCodes.INVALID_FORMAT.code,
+                            errorDescription = errorMessage
+                        )
+                    )
+                )
+            )
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException::class)
     fun handleValidationExceptions(ex: MethodArgumentNotValidException): ResponseEntity<ApiResponse<Nothing>> {

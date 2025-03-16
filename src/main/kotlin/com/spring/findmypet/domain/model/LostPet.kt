@@ -52,4 +52,10 @@ data class LostPet(
 
     @Column(nullable = false)
     val createdAt: LocalDateTime = LocalDateTime.now()
-) 
+) {
+    override fun toString(): String {
+        return "LostPet(id=$id, petType=$petType, title='$title', breed=$breed, color='$color', " +
+               "description='$description', gender='$gender', hasChip=$hasChip, address='$address', " +
+               "latitude=$latitude, longitude=$longitude, photos=$photos, createdAt=$createdAt)"
+    }
+} 

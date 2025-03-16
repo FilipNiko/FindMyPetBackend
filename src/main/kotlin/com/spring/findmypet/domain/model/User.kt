@@ -49,4 +49,8 @@ data class User(
     fun getFullName(): String = fullName
     fun getPhoneNumber(): String = phoneNumber
     fun getRole(): Role = role
+
+    override fun toString(): String {
+        return "User(id=$id, fullName='$fullName', email='$email', phoneNumber='$phoneNumber', role=$role)"
+    }
 } 

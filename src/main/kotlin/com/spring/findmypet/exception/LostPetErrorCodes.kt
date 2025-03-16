@@ -45,9 +45,14 @@ enum class LostPetErrorCodes(val code: String, val message: String) {
         code = "INVALID_REQUEST",
         message = "Neispravan zahtev"
     ),
+
+    INVALID_FORMAT(
+        code = "INVALID_FORMAT",
+        message = "Pogrešan format zahteva"
+    ),
     
     SYSTEM_ERROR(
         code = "SYSTEM_ERROR",
         message = "Došlo je do sistemske greške"
-    )
+    ),
 } 

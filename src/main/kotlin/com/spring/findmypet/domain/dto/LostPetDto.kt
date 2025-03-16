@@ -25,7 +25,7 @@ data class ReportLostPetRequest(
     val description: String,
 
     @field:Pattern(
-        regexp = "^(Muški|Ženski)$",
+        regexp = "^(MALE|FEMALE)$",
         message = LostPetValidationTags.GENDER_INVALID
     )
     val gender: String,

@@ -1,5 +1,6 @@
 package com.spring.findmypet.config
 
+import org.slf4j.LoggerFactory
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpMethod
@@ -21,12 +22,16 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 @EnableMethodSecurity
 class SecurityConfig(
     private val jwtAuthFilter: JwtAuthenticationFilter,
+    private val requestLoggingFilter: RequestLoggingFilter,
     private val authenticationProvider: AuthenticationProvider,
     private val logoutHandler: LogoutHandler
 ) {
+    private val logger = LoggerFactory.getLogger(SecurityConfig::class.java)
 
     @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
+        logger.info("Konfigurisanje security filter chain-a")
+        
         http
             .cors { it.configurationSource(corsConfigurationSource()) }
             .csrf { it.disable() }
@@ -49,9 +54,11 @@ class SecurityConfig(
                     ).permitAll()
                     .anyRequest()
                     .authenticated()
+                logger.debug("Konfigurisan authorization request matcher")
             }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authenticationProvider(authenticationProvider)
+            .addFilterBefore(requestLoggingFilter, UsernamePasswordAuthenticationFilter::class.java)
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter::class.java)
             .logout { logout ->
                 logout.logoutUrl("/api/v1/auth/logout")
@@ -61,6 +68,7 @@ class SecurityConfig(
                     }
             }
 
+        logger.info("Security filter chain uspešno konfigurisan")
         return http.build()
     }
 
