@@ -1,66 +1,22 @@
 package com.spring.findmypet.exception.auth
 
+import com.spring.findmypet.exception.ErrorCode
+
+/**
+ * Kodovi grešaka vezani za autentifikaciju
+ */
 enum class AuthErrorCodes(
-    val code: String,
-    val message: String
-) {
-    FULLNAME_FIELD_REQUIRED(
-        "FULLNAME_FIELD_REQUIRED",
-        "Ime i prezime je obavezno polje"
+    override val code: String,
+    override val message: String
+) : ErrorCode {
+    AUTH_ERROR(
+        "AUTH_ERROR",
+        "Greška pri autentifikaciji"
     ),
-    FULLNAME_FIELD_INVALID_FORMAT(
-        "FULLNAME_FIELD_INVALID_FORMAT",
-        "Ime i prezime može sadržati samo slova i razmake"
-    ),
-
-    EMAIL_FIELD_REQUIRED(
-        "EMAIL_FIELD_REQUIRED",
-        "Email je obavezno polje"
-    ),
-    EMAIL_FIELD_INVALID_FORMAT(
-        "EMAIL_FIELD_INVALID_FORMAT",
-        "Email nije u ispravnom formatu"
-    ),
-    EMAIL_ALREADY_REGISTERED(
-        "EMAIL_ALREADY_REGISTERED",
-        "Email adresa je već registrovana"
-    ),
-
-    PHONE_FIELD_REQUIRED(
-        "PHONE_FIELD_REQUIRED",
-        "Broj telefona je obavezno polje"
-    ),
-    PHONE_FIELD_INVALID_FORMAT(
-        "PHONE_FIELD_INVALID_FORMAT",
-        "Broj telefona mora početi sa +381 ili 06"
-    ),
-
-    PASSWORD_FIELD_REQUIRED(
-        "PASSWORD_FIELD_REQUIRED",
-        "Lozinka je obavezno polje"
-    ),
-    PASSWORD_FIELD_TOO_SHORT(
-        "PASSWORD_FIELD_TOO_SHORT",
-        "Lozinka mora imati najmanje 6 karaktera"
-    ),
-    PASSWORD_FIELD_MISSING_UPPERCASE(
-        "PASSWORD_FIELD_MISSING_UPPERCASE",
-        "Lozinka mora sadržati bar jedno veliko slovo"
-    ),
-    PASSWORD_FIELD_MISSING_NUMBER(
-        "PASSWORD_FIELD_MISSING_NUMBER",
-        "Lozinka mora sadržati bar jedan broj"
-    ),
-    PASSWORD_FIELD_MISSING_SPECIAL_CHAR(
-        "PASSWORD_FIELD_MISSING_SPECIAL_CHAR",
-        "Lozinka mora sadržati bar jedan specijalni karakter"
-    ),
-
-    LOGIN_INVALID_CREDENTIALS(
-        "LOGIN_INVALID_CREDENTIALS",
+    INVALID_CREDENTIALS(
+        "INVALID_CREDENTIALS",
         "Pogrešan email ili lozinka"
     ),
-
     TOKEN_EXPIRED(
         "TOKEN_EXPIRED",
         "Token je istekao"
@@ -69,13 +25,52 @@ enum class AuthErrorCodes(
         "TOKEN_INVALID",
         "Token nije validan"
     ),
-    TOKEN_MISSING(
-        "TOKEN_MISSING",
-        "Token nije prosleđen"
+    EMAIL_ALREADY_EXISTS(
+        "EMAIL_ALREADY_EXISTS",
+        "Email adresa je već registrovana"
     ),
-
-    AUTH_SYSTEM_ERROR(
-        "AUTH_SYSTEM_ERROR",
-        "Došlo je do greške prilikom autentifikacije"
+    EMAIL_FIELD_REQUIRED(
+        "EMAIL_FIELD_REQUIRED",
+        "Polje je obavezno"
+    ),
+    EMAIL_INVALID_FORMAT(
+        "EMAIL_INVALID_FORMAT",
+        "Email nije u ispravnom formatu"
+    ),
+    PASSWORD_FIELD_REQUIRED(
+        "PASSWORD_FIELD_REQUIRED",
+        "Polje je obavezno"
+    ),
+    PASSWORD_TOO_SHORT(
+        "PASSWORD_TOO_SHORT",
+        "Lozinka mora imati najmanje 6 karaktera"
+    ),
+    PASSWORD_MISSING_UPPERCASE(
+        "PASSWORD_MISSING_UPPERCASE",
+        "Lozinka mora sadržati bar jedno veliko slovo"
+    ),
+    PASSWORD_MISSING_NUMBER(
+        "PASSWORD_MISSING_NUMBER",
+        "Lozinka mora sadržati bar jedan broj"
+    ),
+    PASSWORD_MISSING_SPECIAL_CHAR(
+        "PASSWORD_MISSING_SPECIAL_CHAR",
+        "Lozinka mora sadržati bar jedan specijalni karakter"
+    ),
+    FULLNAME_REQUIRED(
+        "FULLNAME_REQUIRED",
+        "Ime i prezime je obavezno polje"
+    ),
+    FULLNAME_INVALID_FORMAT(
+        "FULLNAME_INVALID_FORMAT",
+        "Ime i prezime može sadržati samo slova i razmake"
+    ),
+    PHONE_REQUIRED(
+        "PHONE_REQUIRED",
+        "Broj telefona je obavezno polje"
+    ),
+    PHONE_INVALID_FORMAT(
+        "PHONE_INVALID_FORMAT",
+        "Broj telefona mora početi sa +381 ili 06"
     )
 } 

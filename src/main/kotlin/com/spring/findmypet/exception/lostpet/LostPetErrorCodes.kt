@@ -1,6 +1,14 @@
-package com.spring.findmypet.exception
+package com.spring.findmypet.exception.lostpet
 
-enum class LostPetErrorCodes(val code: String, val message: String) {
+import com.spring.findmypet.exception.ErrorCode
+
+/**
+ * Kodovi grešaka za nestale ljubimce
+ */
+enum class LostPetErrorCodes(
+    override val code: String,
+    override val message: String
+) : ErrorCode {
     TITLE_EMPTY(
         code = "TITLE_EMPTY",
         message = "Naslov je obavezan"
