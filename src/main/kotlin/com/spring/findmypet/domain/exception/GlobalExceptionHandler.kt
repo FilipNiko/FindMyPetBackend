@@ -2,6 +2,7 @@ package com.spring.findmypet.domain.exception
 
 import com.spring.findmypet.domain.dto.ApiError
 import com.spring.findmypet.domain.dto.ApiResponse
+import io.jsonwebtoken.ExpiredJwtException
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.authentication.BadCredentialsException
@@ -96,6 +97,18 @@ class GlobalExceptionHandler {
         return ResponseEntity
             .status(HttpStatus.BAD_REQUEST)
             .body(ApiResponse(success = false, errors = errors))
+    }
+    
+    @ExceptionHandler(ExpiredJwtException::class)
+    fun handleExpiredJwtException(ex: ExpiredJwtException): ResponseEntity<ApiResponse<Any>> {
+        val apiError = ApiError(
+            errorCode = "TOKEN_EXPIRED",
+            errorDescription = "Token je istekao, potrebno je osvežavanje"
+        )
+        
+        return ResponseEntity
+            .status(HttpStatus.UNAUTHORIZED)
+            .body(ApiResponse(success = false, errors = listOf(apiError)))
     }
     
     @ExceptionHandler(Exception::class)

@@ -5,6 +5,7 @@ import com.spring.findmypet.domain.dto.LoginRequest
 import com.spring.findmypet.domain.dto.RegisterRequest
 import com.spring.findmypet.domain.exception.EmailAlreadyExistsException
 import com.spring.findmypet.domain.exception.InvalidCredentialsException
+import com.spring.findmypet.domain.exception.InvalidTokenException
 import com.spring.findmypet.domain.exception.ResourceNotFoundException
 import com.spring.findmypet.domain.model.Token
 import com.spring.findmypet.domain.model.TokenType
@@ -77,6 +78,31 @@ class AuthenticationService(
         revokeAllUserTokens(user)
         saveUserToken(user, accessToken)
 
+        return AuthResponse(
+            accessToken = accessToken,
+            refreshToken = refreshToken,
+            fullName = user.getFullName(),
+            email = user.username,
+            role = user.getRole().name
+        )
+    }
+
+    @Transactional
+    fun refreshToken(refreshToken: String): AuthResponse {
+        val username = jwtService.extractUsername(refreshToken)
+            ?: throw InvalidTokenException(ValidationMessages.INVALID_TOKEN)
+            
+        val user = userRepository.findByEmail(username)
+            .orElseThrow { InvalidTokenException(ValidationMessages.INVALID_TOKEN) }
+            
+        if (!jwtService.isTokenValid(refreshToken, user)) {
+            throw InvalidTokenException(ValidationMessages.INVALID_TOKEN)
+        }
+            
+        val accessToken = jwtService.generateToken(user)
+        revokeAllUserTokens(user)
+        saveUserToken(user, accessToken)
+        
         return AuthResponse(
             accessToken = accessToken,
             refreshToken = refreshToken,
