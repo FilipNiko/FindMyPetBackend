@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonInclude
 data class ApiResponse<T>(
     val success: Boolean,
     val result: T? = null,
-    val errors: List<ApiError>? = null
+    val errors: List<ApiError> = emptyList()
 )
 
 data class ApiError(

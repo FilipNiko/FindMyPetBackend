@@ -10,5 +10,8 @@ object ValidationMessages {
     const val PASSWORD_MISSING_NUMBER = "PASSWORD_MISSING_NUMBER"
     const val PASSWORD_MISSING_SPECIAL_CHAR = "PASSWORD_MISSING_SPECIAL_CHAR"
 
-    const val EMAIL_ALREADY_REGISTERED = "EMAIL_ALREADY_EXISTS"
+    const val EMAIL_ALREADY_REGISTERED = "Email adresa je već registrovana"
+    const val INVALID_CREDENTIALS = "Pogrešan email ili lozinka"
+    const val USER_NOT_FOUND = "Korisnik nije pronađen"
+    const val INVALID_TOKEN = "Nevažeći token"
 } 

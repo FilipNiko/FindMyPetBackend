@@ -3,6 +3,9 @@ package com.spring.findmypet.service
 import com.spring.findmypet.domain.dto.AuthResponse
 import com.spring.findmypet.domain.dto.LoginRequest
 import com.spring.findmypet.domain.dto.RegisterRequest
+import com.spring.findmypet.domain.exception.EmailAlreadyExistsException
+import com.spring.findmypet.domain.exception.InvalidCredentialsException
+import com.spring.findmypet.domain.exception.ResourceNotFoundException
 import com.spring.findmypet.domain.model.Token
 import com.spring.findmypet.domain.model.TokenType
 import com.spring.findmypet.domain.model.User
@@ -28,7 +31,7 @@ class AuthenticationService(
     @Transactional
     fun register(request: RegisterRequest): AuthResponse {
         if (userRepository.existsByEmail(request.email)) {
-            throw IllegalStateException(ValidationMessages.EMAIL_ALREADY_REGISTERED)
+            throw EmailAlreadyExistsException(ValidationMessages.EMAIL_ALREADY_REGISTERED)
         }
 
         val user = User(
@@ -54,15 +57,19 @@ class AuthenticationService(
 
     @Transactional
     fun login(request: LoginRequest): AuthResponse {
-        authenticationManager.authenticate(
-            UsernamePasswordAuthenticationToken(
-                request.email,
-                request.password
+        try {
+            authenticationManager.authenticate(
+                UsernamePasswordAuthenticationToken(
+                    request.email,
+                    request.password
+                )
             )
-        )
+        } catch (e: BadCredentialsException) {
+            throw InvalidCredentialsException(ValidationMessages.INVALID_CREDENTIALS)
+        }
 
         val user = userRepository.findByEmail(request.email)
-            .orElseThrow { BadCredentialsException("Pogrešan email ili lozinka") }
+            .orElseThrow { ResourceNotFoundException(ValidationMessages.USER_NOT_FOUND) }
         
         val accessToken = jwtService.generateToken(user)
         val refreshToken = jwtService.generateRefreshToken(user)
