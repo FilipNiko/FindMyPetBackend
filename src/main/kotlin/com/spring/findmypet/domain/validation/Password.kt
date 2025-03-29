@@ -18,7 +18,7 @@ class PasswordValidator : ConstraintValidator<Password, String> {
     override fun isValid(value: String?, context: ConstraintValidatorContext): Boolean {
         if (value == null) {
             context.disableDefaultConstraintViolation()
-            context.buildConstraintViolationWithTemplate(ValidationMessages.FIELD_REQUIRED)
+            context.buildConstraintViolationWithTemplate("Lozinka je obavezna")
                 .addConstraintViolation()
             return false
         }
@@ -27,22 +27,22 @@ class PasswordValidator : ConstraintValidator<Password, String> {
         
         when {
             value.length < 6 -> {
-                context.buildConstraintViolationWithTemplate(ValidationMessages.FIELD_TOO_SHORT)
+                context.buildConstraintViolationWithTemplate("Lozinka mora imati najmanje 6 karaktera")
                     .addConstraintViolation()
                 return false
             }
             !value.contains(Regex("[A-Z]")) -> {
-                context.buildConstraintViolationWithTemplate(ValidationMessages.PASSWORD_MISSING_UPPERCASE)
+                context.buildConstraintViolationWithTemplate("Lozinka mora sadržati bar jedno veliko slovo")
                     .addConstraintViolation()
                 return false
             }
             !value.contains(Regex("[0-9]")) -> {
-                context.buildConstraintViolationWithTemplate(ValidationMessages.PASSWORD_MISSING_NUMBER)
+                context.buildConstraintViolationWithTemplate("Lozinka mora sadržati bar jedan broj")
                     .addConstraintViolation()
                 return false
             }
             !value.contains(Regex("[@\$!%#*?&]")) -> {
-                context.buildConstraintViolationWithTemplate(ValidationMessages.PASSWORD_MISSING_SPECIAL_CHAR)
+                context.buildConstraintViolationWithTemplate("Lozinka mora sadržati bar jedan specijalni karakter")
                     .addConstraintViolation()
                 return false
             }

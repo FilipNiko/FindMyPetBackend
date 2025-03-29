@@ -1,52 +1,51 @@
 package com.spring.findmypet.domain.dto
 
 import com.spring.findmypet.domain.model.PetType
-import com.spring.findmypet.domain.validation.LostPetValidationTags
 import jakarta.validation.constraints.*
 
 data class ReportLostPetRequest(
-    @field:NotNull
+    @field:NotNull(message = "Tip ljubimca je obavezan")
     val petType: PetType,
 
-    @field:NotBlank(message = LostPetValidationTags.TITLE_EMPTY)
+    @field:NotBlank(message = "Naslov je obavezan")
     val title: String,
 
     val breed: String?,
 
-    @field:NotBlank(message = LostPetValidationTags.COLOR_EMPTY)
+    @field:NotBlank(message = "Boja je obavezna")
     val color: String,
 
-    @field:NotBlank
+    @field:NotBlank(message = "Opis je obavezan")
     @field:Size(
         min = 50,
         max = 1000,
-        message = LostPetValidationTags.DESCRIPTION_SIZE
+        message = "Opis mora imati između 50 i 1000 karaktera"
     )
     val description: String,
 
     @field:Pattern(
         regexp = "^(MALE|FEMALE)$",
-        message = LostPetValidationTags.GENDER_INVALID
+        message = "Pol mora biti 'Muški' ili 'Ženski'"
     )
     val gender: String,
 
     val hasChip: Boolean,
 
-    @field:NotBlank(message = LostPetValidationTags.ADDRESS_EMPTY)
+    @field:NotBlank(message = "Adresa je obavezna")
     val address: String,
 
-    @field:NotNull(message = LostPetValidationTags.COORDINATES_INVALID)
-    @field:DecimalMin(value = "-90.0")
-    @field:DecimalMax(value = "90.0")
+    @field:NotNull(message = "Koordinate nisu validne")
+    @field:DecimalMin(value = "-90.0", message = "Vrednost geografske širine mora biti između -90 i 90")
+    @field:DecimalMax(value = "90.0", message = "Vrednost geografske širine mora biti između -90 i 90")
     val latitude: Double,
 
-    @field:NotNull(message = LostPetValidationTags.COORDINATES_INVALID)
-    @field:DecimalMin(value = "-180.0")
-    @field:DecimalMax(value = "180.0")
+    @field:NotNull(message = "Koordinate nisu validne")
+    @field:DecimalMin(value = "-180.0", message = "Vrednost geografske dužine mora biti između -180 i 180")
+    @field:DecimalMax(value = "180.0", message = "Vrednost geografske dužine mora biti između -180 i 180")
     val longitude: Double,
 
-    @field:NotEmpty(message = LostPetValidationTags.NO_PHOTOS)
-    @field:Size(max = 5, message = LostPetValidationTags.TOO_MANY_PHOTOS)
+    @field:NotEmpty(message = "Mora biti priložena bar jedna fotografija")
+    @field:Size(max = 5, message = "Maksimalan broj fotografija je 5")
     val photos: List<String>
 )
 
