@@ -1,8 +1,10 @@
 package com.spring.findmypet.domain.dto
 
 import com.spring.findmypet.domain.model.PetType
+import com.spring.findmypet.domain.validation.ValidBreed
 import jakarta.validation.constraints.*
 
+@ValidBreed
 data class ReportLostPetRequest(
     @field:NotNull(message = "Tip ljubimca je obavezan")
     val petType: PetType,

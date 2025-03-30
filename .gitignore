@@ -33,8 +33,10 @@ out/
 /nbdist/
 /.nb-gradle/
 
-### VS Code ###
+### VS Code ###ª
 .vscode/
 
 ### Kotlin ###
 .kotlin
+
+/uploads
