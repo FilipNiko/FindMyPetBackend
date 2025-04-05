@@ -1,8 +1,8 @@
 package com.spring.findmypet.service
 
-import com.spring.findmypet.domain.dto.LostPetResponse
-import com.spring.findmypet.domain.dto.ReportLostPetRequest
+import com.spring.findmypet.domain.dto.*
 import com.spring.findmypet.domain.model.LostPet
+import com.spring.findmypet.domain.model.PetType
 import com.spring.findmypet.domain.model.User
 import com.spring.findmypet.repository.LostPetRepository
 import org.slf4j.LoggerFactory
@@ -11,7 +11,9 @@ import org.springframework.transaction.annotation.Transactional
 
 @Service
 class LostPetService(
-    private val lostPetRepository: LostPetRepository
+    private val lostPetRepository: LostPetRepository,
+    private val geoService: GeoService,
+    private val timeFormatService: TimeFormatService
 ) {
     private val logger = LoggerFactory.getLogger(LostPetService::class.java)
 
@@ -65,6 +67,60 @@ class LostPetService(
         } catch (e: Exception) {
             logger.error("Greška prilikom kreiranja prijave izgubljenog ljubimca", e)
             throw e
+        }
+    }
+
+    @Transactional(readOnly = true)
+    fun getLostPetsList(request: LostPetListRequest): List<LostPetListItem> {
+        logger.info("Dohvatanje liste nestalih ljubimaca - lat: ${request.latitude}, lon: ${request.longitude}")
+        logger.debug("Parametri zahteva: filter={}, sortiranje={}", request.petFilter, request.sortBy)
+        
+        // Dobavi sve ljubimce i primeni filtriranje
+        val allPets = when (request.petFilter) {
+            PetFilter.ALL -> lostPetRepository.findAll()
+            PetFilter.DOGS -> lostPetRepository.findAllByPetType(PetType.DOG)
+            PetFilter.CATS -> lostPetRepository.findAllByPetType(PetType.CAT)
+            PetFilter.OTHER -> lostPetRepository.findAllByPetType(PetType.OTHER)
+        }
+        
+        // Pripremi listu sa računanjem udaljenosti
+        val petsWithDistance = allPets.map { pet ->
+            val distance = geoService.calculateDistance(
+                request.latitude, request.longitude,
+                pet.latitude, pet.longitude
+            )
+            
+            pet to distance
+        }
+        
+        // Sortiraj po zahtevanom kriterijumu
+        val sortedPets = when (request.sortBy) {
+            SortType.DISTANCE -> petsWithDistance.sortedBy { it.second }
+            SortType.LATEST -> petsWithDistance.sortedByDescending { it.first.createdAt }
+        }
+        
+        // Konvertuj u odgovor
+        return sortedPets.map { (pet, distance) ->
+            LostPetListItem(
+                id = pet.id,
+                mainPhotoUrl = getMainPhotoUrl(pet),
+                timeAgo = timeFormatService.getTimeAgo(pet.createdAt),
+                petName = pet.title,
+                breed = pet.breed,
+                ownerName = pet.user.getFullName(),
+                distance = geoService.formatDistance(distance),
+                petType = pet.petType
+            )
+        }
+    }
+    
+    private fun getMainPhotoUrl(pet: LostPet): String {
+        return if (pet.photos.isNotEmpty()) {
+            // Ovde možeš dodati kompletan URL fotografije
+            "/uploads/${pet.photos.first()}"
+        } else {
+            // Podrazumevana slika ako nema fotografija
+            "/img/no-image.jpg"
         }
     }
 } 

@@ -3,6 +3,8 @@ package com.spring.findmypet.controller
 import com.spring.findmypet.domain.dto.ApiResponse
 import com.spring.findmypet.domain.dto.LostPetResponse
 import com.spring.findmypet.domain.dto.ReportLostPetRequest
+import com.spring.findmypet.domain.dto.LostPetListRequest
+import com.spring.findmypet.domain.dto.LostPetListItem
 import com.spring.findmypet.domain.model.User
 import com.spring.findmypet.domain.validation.ValidationService
 import com.spring.findmypet.service.LostPetService
@@ -10,6 +12,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.*
+import jakarta.validation.Valid
 
 @RestController
 @RequestMapping("/api/v1/lost-pets")
@@ -41,6 +44,23 @@ class LostPetController(
             return ResponseEntity.ok(ApiResponse(success = true, result = response))
         } catch (e: Exception) {
             logger.error("Greška prilikom prijave izgubljenog ljubimca", e)
+            throw e
+        }
+    }
+
+    @PostMapping("/list")
+    fun getLostPetsList(
+        @Valid @RequestBody request: LostPetListRequest
+    ): ResponseEntity<ApiResponse<List<LostPetListItem>>> {
+        logger.info("Primljen zahtev za listu nestalih ljubimaca. Lokacija: [${request.latitude}, ${request.longitude}]")
+        logger.debug("Parametri zahteva: filter={}, sortiranje={}", request.petFilter, request.sortBy)
+        
+        try {
+            val result = lostPetService.getLostPetsList(request)
+            logger.info("Uspešno vraćena lista sa ${result.size} nestalih ljubimaca")
+            return ResponseEntity.ok(ApiResponse(success = true, result = result))
+        } catch (e: Exception) {
+            logger.error("Greška prilikom dobavljanja liste nestalih ljubimaca", e)
             throw e
         }
     }
