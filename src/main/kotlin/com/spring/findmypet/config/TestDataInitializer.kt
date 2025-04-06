@@ -223,11 +223,25 @@ class TestDataInitializer {
                 
                 val location = locations[random.nextInt(locations.size)]
                 val name = dogNames[random.nextInt(dogNames.size)]
-                val breed = dogBreeds[random.nextInt(dogBreeds.size)]
-                val color = dogColors[random.nextInt(dogColors.size)]
+                
+                // Osiguravamo raznovrsnost rasa i boja za bolje testiranje filtera
+                val breed = if (index % 4 == 0 && index < dogBreeds.size) {
+                    // Isti pas može biti više puta, ali na različitim lokacijama
+                    dogBreeds[index % dogBreeds.size] 
+                } else {
+                    dogBreeds[random.nextInt(dogBreeds.size)]
+                }
+                
+                val color = if (index % 5 == 0 && index < dogColors.size) { 
+                    // Osiguravamo da imamo dovoljno pasa iste boje za testiranje filtera
+                    dogColors[index % dogColors.size]
+                } else {
+                    dogColors[random.nextInt(dogColors.size)]
+                }
+                
                 val description = detailedDescriptions[PetType.DOG]!![random.nextInt(detailedDescriptions[PetType.DOG]!!.size)]
-                val gender = if (random.nextBoolean()) "MALE" else "FEMALE"
-                val hasChip = random.nextBoolean()
+                val gender = if (index % 2 == 0) "MALE" else "FEMALE" // Balansiramo polove
+                val hasChip = index % 3 == 0 // Osiguravamo da neki imaju čip, neki ne
                 
                 // Određivanje broja slika - neki ljubimci imaju više slika
                 val photos = if (random.nextDouble() < multiPhotoChance) {
@@ -271,11 +285,23 @@ class TestDataInitializer {
                 
                 val location = locations[random.nextInt(locations.size)]
                 val name = catNames[random.nextInt(catNames.size)]
-                val breed = catBreeds[random.nextInt(catBreeds.size)]
-                val color = catColors[random.nextInt(catColors.size)]
+                
+                // Osiguravamo raznovrsnost rasa i boja za bolje testiranje filtera
+                val breed = if (index % 4 == 0 && index < catBreeds.size) {
+                    catBreeds[index % catBreeds.size]
+                } else {
+                    catBreeds[random.nextInt(catBreeds.size)]
+                }
+                
+                val color = if (index % 5 == 0 && index < catColors.size) {
+                    catColors[index % catColors.size]
+                } else {
+                    catColors[random.nextInt(catColors.size)]
+                }
+                
                 val description = detailedDescriptions[PetType.CAT]!![random.nextInt(detailedDescriptions[PetType.CAT]!!.size)]
-                val gender = if (random.nextBoolean()) "MALE" else "FEMALE"
-                val hasChip = random.nextBoolean()
+                val gender = if (index % 2 == 0) "MALE" else "FEMALE" // Balansiramo polove
+                val hasChip = index % 3 == 0 // Osiguravamo da neki imaju čip, neki ne
                 
                 // Određivanje broja slika
                 val photos = if (random.nextDouble() < multiPhotoChance) {
@@ -320,11 +346,23 @@ class TestDataInitializer {
                 
                 val location = locations[random.nextInt(locations.size)]
                 val name = otherNames[random.nextInt(otherNames.size)]
-                val breed = otherTypes[random.nextInt(otherTypes.size)]
-                val color = otherColors[random.nextInt(otherColors.size)]
+                
+                // Osiguravamo raznovrsnost rasa i boja za bolje testiranje filtera
+                val breed = if (index % 3 == 0 && index < otherTypes.size) {
+                    otherTypes[index % otherTypes.size]
+                } else {
+                    otherTypes[random.nextInt(otherTypes.size)]
+                }
+                
+                val color = if (index % 3 == 0 && index < otherColors.size) {
+                    otherColors[index % otherColors.size]
+                } else {
+                    otherColors[random.nextInt(otherColors.size)]
+                }
+                
                 val description = detailedDescriptions[PetType.OTHER]!![random.nextInt(detailedDescriptions[PetType.OTHER]!!.size)]
-                val gender = if (random.nextBoolean()) "MALE" else "FEMALE"
-                val hasChip = false // većina ostalih ljubimaca nema čip
+                val gender = if (index % 2 == 0) "MALE" else "FEMALE" // Balansiramo polove
+                val hasChip = index % 5 == 0 // Mali procenat ostalih ljubimaca ima čip
                 
                 // Određivanje broja slika
                 val photos = if (random.nextDouble() < multiPhotoChance) {
