@@ -5,10 +5,15 @@ import com.spring.findmypet.domain.model.LostPet
 import com.spring.findmypet.domain.model.PetType
 import com.spring.findmypet.domain.model.User
 import com.spring.findmypet.repository.LostPetRepository
+import com.spring.findmypet.service.GeoService.GeoBoundingBox
 import org.slf4j.LoggerFactory
+import org.springframework.data.domain.PageRequest
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import kotlin.math.ceil
+import kotlin.math.cos
+import kotlin.math.abs
 
 @Service
 class LostPetService(
@@ -17,6 +22,13 @@ class LostPetService(
     private val timeFormatService: TimeFormatService
 ) {
     private val logger = LoggerFactory.getLogger(LostPetService::class.java)
+
+    companion object {
+        // Približna vrednost za 1 stepen geografske širine u kilometrima
+        private const val KM_PER_DEGREE_LAT = 111.0
+        // Faktor sigurnosti za geografski okvir (povećava okvir)
+        private const val GEO_SAFETY_FACTOR = 1.2
+    }
 
     @Transactional
     fun reportLostPet(request: ReportLostPetRequest, user: User): LostPetResponse {
@@ -79,75 +91,145 @@ class LostPetService(
         logger.debug("Napredni filteri: breed={}, color={}, gender={}, hasChip={}", 
                      request.breed, request.color, request.gender, request.hasChip)
 
-        val allPets = lostPetRepository.findAll()
+        val geoBox = geoService.calculateGeoBoundingBox(request.latitude, request.longitude, request.radius.toDouble())
 
-        val filteredPets = allPets
-            .asSequence()
-            .filter { pet ->
-                when (request.petFilter) {
-                    PetFilter.ALL -> true
-                    PetFilter.DOGS -> pet.petType == PetType.DOG
-                    PetFilter.CATS -> pet.petType == PetType.CAT
-                    PetFilter.OTHER -> pet.petType == PetType.OTHER
+        val petType = if (request.petFilter == PetFilter.ALL) null else 
+                     when (request.petFilter) {
+                         PetFilter.DOGS -> PetType.DOG
+                         PetFilter.CATS -> PetType.CAT
+                         PetFilter.OTHER -> PetType.OTHER
+                         else -> null
+                     }
+
+        if (request.sortBy == SortType.LATEST) {
+            val sortByLatest = true
+            val pageable = PageRequest.of(request.page, request.size)
+
+            val petsPage = lostPetRepository.findPetsWithFilters(
+                petType = petType,
+                breed = request.breed,
+                color = request.color,
+                gender = request.gender,
+                hasChip = request.hasChip,
+                minLatitude = geoBox.minLat,
+                maxLatitude = geoBox.maxLat,
+                minLongitude = geoBox.minLng,
+                maxLongitude = geoBox.maxLng,
+                sortByLatest = sortByLatest,
+                pageable = pageable
+            )
+
+            val filteredContent = petsPage.content
+                .map { pet ->
+                    val distance = geoService.calculateDistance(
+                        request.latitude, request.longitude,
+                        pet.latitude, pet.longitude
+                    )
+                    pet to distance
                 }
-            }
-            .filter { pet -> request.breed == null || pet.breed?.contains(request.breed, ignoreCase = true) == true }
-            .filter { pet -> request.color == null || pet.color.contains(request.color, ignoreCase = true) == true }
-            .filter { pet -> request.gender == null || pet.gender == request.gender }
-            .filter { pet -> request.hasChip == null || pet.hasChip == request.hasChip }
-            .map { pet ->
-                val distance = geoService.calculateDistance(
-                    request.latitude, request.longitude,
-                    pet.latitude, pet.longitude
+                .filter { (_, distance) -> distance <= request.radius * 1000 }
+                .map { (pet, distance) ->
+                    LostPetListItem(
+                        id = pet.id,
+                        mainPhotoUrl = getMainPhotoUrl(pet),
+                        timeAgo = timeFormatService.getTimeAgo(pet.createdAt),
+                        petName = pet.title,
+                        breed = pet.breed,
+                        color = pet.color,
+                        gender = pet.gender,
+                        hasChip = pet.hasChip,
+                        ownerName = pet.user.getFullName(),
+                        distance = geoService.formatDistance(distance),
+                        petType = pet.petType,
+                        allPhotos = pet.photos.map { photo -> "/uploads/$photo" }
+                    )
+                }
+
+            val totalInRadius = if (filteredContent.size < petsPage.content.size) {
+                geoService.getExactCountInRadius(
+                    petType, request.breed, request.color, request.gender, request.hasChip,
+                    geoBox, request.latitude, request.longitude, request.radius
                 )
-                pet to distance
+            } else {
+                petsPage.totalElements
             }
-            .filter { (_, distance) -> distance <= request.radius * 1000 }
-            .toList()
 
-        val sortedPets = when (request.sortBy) {
-            SortType.DISTANCE -> filteredPets.sortedBy { it.second }
-            SortType.LATEST -> filteredPets.sortedByDescending { it.first.createdAt }
-        }
-
-        val totalElements = sortedPets.size.toLong()
-        val totalPages = ceil(totalElements.toDouble() / request.size).toInt()
-        val isLastPage = request.page >= totalPages - 1 || totalPages == 0
-        
-        val startIndex = request.page * request.size
-        val endIndex = minOf((request.page + 1) * request.size, sortedPets.size)
-        
-        val pagedPets = if (startIndex < sortedPets.size) {
-            sortedPets.subList(startIndex, endIndex)
+            val totalPages = ceil(totalInRadius.toDouble() / request.size).toInt()
+            val isLastPage = request.page >= totalPages - 1 || totalPages == 0
+            
+            return LostPetListResponse(
+                content = filteredContent,
+                page = request.page,
+                size = request.size,
+                totalElements = totalInRadius,
+                totalPages = totalPages,
+                last = isLastPage
+            )
         } else {
-            emptyList()
-        }
+            val allInBox = lostPetRepository.findPetsWithFilters(
+                petType = petType,
+                breed = request.breed,
+                color = request.color,
+                gender = request.gender,
+                hasChip = request.hasChip,
+                minLatitude = geoBox.minLat,
+                maxLatitude = geoBox.maxLat,
+                minLongitude = geoBox.minLng,
+                maxLongitude = geoBox.maxLng,
+                sortByLatest = false,
+                pageable = Pageable.unpaged()
+            ).content
 
-        val petItems = pagedPets.map { (pet, distance) ->
-            LostPetListItem(
-                id = pet.id,
-                mainPhotoUrl = getMainPhotoUrl(pet),
-                timeAgo = timeFormatService.getTimeAgo(pet.createdAt),
-                petName = pet.title,
-                breed = pet.breed,
-                color = pet.color,
-                gender = pet.gender,
-                hasChip = pet.hasChip,
-                ownerName = pet.user.getFullName(),
-                distance = geoService.formatDistance(distance),
-                petType = pet.petType,
-                allPhotos = pet.photos.map { photo -> "/uploads/$photo" }
+            val allWithDistance = allInBox
+                .map { pet ->
+                    val distance = geoService.calculateDistance(
+                        request.latitude, request.longitude,
+                        pet.latitude, pet.longitude
+                    )
+                    pet to distance
+                }
+                .filter { (_, distance) -> distance <= request.radius * 1000 }
+                .sortedBy { (_, distance) -> distance }
+
+            val totalElements = allWithDistance.size.toLong()
+            val totalPages = ceil(totalElements.toDouble() / request.size).toInt()
+            val isLastPage = request.page >= totalPages - 1 || totalPages == 0
+            
+            val startIndex = request.page * request.size
+            val endIndex = minOf((request.page + 1) * request.size, allWithDistance.size)
+            
+            val pagedItems = if (startIndex < allWithDistance.size) {
+                allWithDistance.subList(startIndex, endIndex)
+            } else {
+                emptyList()
+            }
+
+            val content = pagedItems.map { (pet, distance) ->
+                LostPetListItem(
+                    id = pet.id,
+                    mainPhotoUrl = getMainPhotoUrl(pet),
+                    timeAgo = timeFormatService.getTimeAgo(pet.createdAt),
+                    petName = pet.title,
+                    breed = pet.breed,
+                    color = pet.color,
+                    gender = pet.gender,
+                    hasChip = pet.hasChip,
+                    ownerName = pet.user.getFullName(),
+                    distance = geoService.formatDistance(distance),
+                    petType = pet.petType,
+                    allPhotos = pet.photos.map { photo -> "/uploads/$photo" }
+                )
+            }
+            
+            return LostPetListResponse(
+                content = content,
+                page = request.page,
+                size = request.size,
+                totalElements = totalElements,
+                totalPages = totalPages,
+                last = isLastPage
             )
         }
-        
-        return LostPetListResponse(
-            content = petItems,
-            page = request.page,
-            size = request.size,
-            totalElements = totalElements,
-            totalPages = totalPages,
-            last = isLastPage
-        )
     }
     
     private fun getMainPhotoUrl(pet: LostPet): String {

@@ -1,10 +1,21 @@
 package com.spring.findmypet.service
 
+import com.spring.findmypet.domain.model.LostPet
+import com.spring.findmypet.domain.model.PetType
+import com.spring.findmypet.repository.LostPetRepository
+import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import kotlin.math.*
 
 @Service
-class GeoService {
+class GeoService(private val lostPetRepository: LostPetRepository) {
+    
+    companion object {
+        // Približna vrednost za 1 stepen geografske širine u kilometrima
+        const val KM_PER_DEGREE_LAT = 111.0
+        // Faktor sigurnosti za geografski okvir (povećava okvir)
+        const val GEO_SAFETY_FACTOR = 1.2
+    }
     
     /**
      * Računa udaljenost između dve geografske tačke koristeći formulu haversine
@@ -43,9 +54,82 @@ class GeoService {
         }
     }
     
+    /**
+     * Izračunava geografski okvir (bounding box) za datu tačku i radijus u kilometrima.
+     * Okvir je pravougaonik koji obuhvata krug radijusa oko tačke.
+     */
+    fun calculateGeoBoundingBox(latitude: Double, longitude: Double, radiusKm: Double): GeoBoundingBox {
+        // Radijus sa faktorom sigurnosti
+        val safeRadius = radiusKm * GEO_SAFETY_FACTOR
+        
+        // Izračunaj promenu geografske širine
+        val deltaLat = safeRadius / KM_PER_DEGREE_LAT
+        
+        // Izračunaj promenu geografske dužine (zavisi od geografske širine)
+        // Na ekvatoru 1 stepen dužine ≈ 111 km, a smanjuje se sa povećanjem geografske širine
+        val kmPerDegreeLng = KM_PER_DEGREE_LAT * cos(Math.toRadians(latitude))
+        val deltaLng = if (kmPerDegreeLng > 0) safeRadius / kmPerDegreeLng else safeRadius
+        
+        return GeoBoundingBox(
+            minLat = latitude - deltaLat,
+            maxLat = latitude + deltaLat,
+            minLng = longitude - deltaLng,
+            maxLng = longitude + deltaLng
+        )
+    }
+    
+    /**
+     * Dobija tačan broj ljubimaca u radijusu
+     */
+    fun getExactCountInRadius(
+        petType: PetType?,
+        breed: String?,
+        color: String?,
+        gender: String?,
+        hasChip: Boolean?,
+        geoBox: GeoBoundingBox,
+        latitude: Double,
+        longitude: Double,
+        radiusKm: Int
+    ): Long {
+        // Dobavi sve ljubimce unutar bbox-a
+        val allPets = lostPetRepository.findPetsWithFilters(
+            petType = petType,
+            breed = breed,
+            color = color,
+            gender = gender,
+            hasChip = hasChip,
+            minLatitude = geoBox.minLat,
+            maxLatitude = geoBox.maxLat,
+            minLongitude = geoBox.minLng,
+            maxLongitude = geoBox.maxLng,
+            sortByLatest = false, // Nije bitno sortiranje
+            pageable = Pageable.unpaged()
+        ).content
+        
+        // Filtriraj samo one koji su zaista unutar radijusa
+        return allPets.count { pet ->
+            val distance = calculateDistance(
+                latitude, longitude,
+                pet.latitude, pet.longitude
+            )
+            distance <= radiusKm * 1000
+        }.toLong()
+    }
+    
     private fun Double.roundTo(decimals: Int): Double {
         var multiplier = 1.0
         repeat(decimals) { multiplier *= 10 }
         return round(this * multiplier) / multiplier
     }
+    
+    /**
+     * Pomocna klasa koja predstavlja geografski okvir
+     */
+    data class GeoBoundingBox(
+        val minLat: Double,
+        val maxLat: Double,
+        val minLng: Double,
+        val maxLng: Double
+    )
 } 
