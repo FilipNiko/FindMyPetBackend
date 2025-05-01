@@ -40,6 +40,8 @@ class SecurityConfig(
                     .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                     .requestMatchers("/api/v1/auth/**").permitAll()
                     .requestMatchers("/uploads/**").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/v1/lost-pets/list").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/v1/lost-pets/{id}").permitAll()
                     .requestMatchers(
                         "/v2/api-docs",
                         "/v3/api-docs",

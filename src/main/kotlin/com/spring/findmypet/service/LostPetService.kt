@@ -4,16 +4,16 @@ import com.spring.findmypet.domain.dto.*
 import com.spring.findmypet.domain.model.LostPet
 import com.spring.findmypet.domain.model.PetType
 import com.spring.findmypet.domain.model.User
+import com.spring.findmypet.exception.NotFoundException
 import com.spring.findmypet.repository.LostPetRepository
 import com.spring.findmypet.service.GeoService.GeoBoundingBox
+import com.spring.findmypet.util.StringsUtil
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import kotlin.math.ceil
-import kotlin.math.cos
-import kotlin.math.abs
 
 @Service
 class LostPetService(
@@ -136,7 +136,7 @@ class LostPetService(
                         petName = pet.title,
                         breed = pet.breed,
                         color = pet.color,
-                        gender = pet.gender,
+                        gender = StringsUtil.mapGender(pet.gender),
                         hasChip = pet.hasChip,
                         ownerName = pet.user.getFullName(),
                         distance = geoService.formatDistance(distance),
@@ -212,7 +212,7 @@ class LostPetService(
                     petName = pet.title,
                     breed = pet.breed,
                     color = pet.color,
-                    gender = pet.gender,
+                    gender = StringsUtil.mapGender(pet.gender),
                     hasChip = pet.hasChip,
                     ownerName = pet.user.getFullName(),
                     distance = geoService.formatDistance(distance),
@@ -230,6 +230,48 @@ class LostPetService(
                 last = isLastPage
             )
         }
+    }
+    
+    @Transactional(readOnly = true)
+    fun getLostPetDetail(id: Long, latitude: Double, longitude: Double): LostPetDetailResponse {
+        logger.info("Dohvatanje detalja za nestalog ljubimca sa ID: $id")
+        logger.debug("Pozicija korisnika: [${latitude}, ${longitude}]")
+        
+        val lostPet = lostPetRepository.findById(id)
+            .orElseThrow { NotFoundException("Nestali ljubimac sa ID: $id nije pronađen") }
+
+        val distanceInMeters = geoService.calculateDistance(
+            latitude, longitude,
+            lostPet.latitude, lostPet.longitude
+        )
+
+        val owner = lostPet.user
+        val ownerInfo = OwnerInfo(
+            id = owner.id ?: throw IllegalStateException("User ID is null"),
+            fullName = owner.getFullName(),
+            email = owner.getUsername(),
+            phoneNumber = owner.getPhoneNumber()
+        )
+        
+        return LostPetDetailResponse(
+            id = lostPet.id,
+            petType = lostPet.petType,
+            title = lostPet.title,
+            breed = lostPet.breed,
+            color = lostPet.color,
+            description = lostPet.description,
+            gender = StringsUtil.mapGender(lostPet.gender),
+            hasChip = lostPet.hasChip,
+            address = lostPet.address,
+            latitude = lostPet.latitude,
+            longitude = lostPet.longitude,
+            createdAt = lostPet.createdAt,
+            timeAgo = timeFormatService.getTimeAgo(lostPet.createdAt),
+            photos = lostPet.photos.map { photo -> "/uploads/$photo" },
+            distance = geoService.formatDistance(distanceInMeters),
+            distanceInMeters = distanceInMeters,
+            owner = ownerInfo
+        )
     }
     
     private fun getMainPhotoUrl(pet: LostPet): String {
