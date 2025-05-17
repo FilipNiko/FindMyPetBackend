@@ -48,6 +48,7 @@ class AuthenticationService(
         saveUserToken(savedUser, accessToken)
 
         return AuthResponse(
+            userId = savedUser.id!!,
             accessToken = accessToken,
             refreshToken = refreshToken,
             fullName = user.getFullName(),
@@ -79,6 +80,7 @@ class AuthenticationService(
         saveUserToken(user, accessToken)
 
         return AuthResponse(
+            userId = user.id!!,
             accessToken = accessToken,
             refreshToken = refreshToken,
             fullName = user.getFullName(),
@@ -104,6 +106,7 @@ class AuthenticationService(
         saveUserToken(user, accessToken)
         
         return AuthResponse(
+            userId = user.id!!,
             accessToken = accessToken,
             refreshToken = refreshToken,
             fullName = user.getFullName(),

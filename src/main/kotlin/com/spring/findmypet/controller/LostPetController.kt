@@ -7,6 +7,7 @@ import com.spring.findmypet.domain.dto.ReportLostPetRequest
 import com.spring.findmypet.domain.dto.LostPetListRequest
 import com.spring.findmypet.domain.dto.LostPetListResponse
 import com.spring.findmypet.domain.dto.LostPetDetailResponse
+import com.spring.findmypet.domain.dto.OwnerInfo
 import com.spring.findmypet.domain.model.User
 import com.spring.findmypet.domain.validation.ValidationService
 import com.spring.findmypet.exception.NotFoundException
@@ -102,6 +103,47 @@ class LostPetController(
                 ))
         } catch (e: Exception) {
             logger.error("Greška prilikom dobavljanja detalja nestalog ljubimca", e)
+            throw e
+        }
+    }
+    
+    /**
+     * Endpoint za dobijanje podataka o vlasniku ljubimca
+     */
+    @GetMapping("/{id}/owner")
+    fun getPetOwner(
+        @PathVariable id: Long,
+        @AuthenticationPrincipal userDetails: User?
+    ): ResponseEntity<ApiResponse<OwnerInfo>> {
+        logger.info("Primljen zahtev za dobijanje podataka o vlasniku ljubimca sa ID: $id")
+        
+        try {
+            val lostPet = lostPetService.findById(id)
+                .orElseThrow { NotFoundException("Ljubimac sa ID-om $id nije pronađen") }
+            
+            val ownerInfo = OwnerInfo(
+                id = lostPet.user.id ?: throw IllegalStateException("User ID is null"),
+                fullName = lostPet.user.getFullName(),
+                email = lostPet.user.getUsername(),
+                phoneNumber = lostPet.user.getPhoneNumber()
+            )
+            
+            logger.info("Uspešno vraćeni podaci o vlasniku ljubimca: ${ownerInfo.fullName}")
+            return ResponseEntity.ok(ApiResponse(success = true, result = ownerInfo))
+            
+        } catch (e: NotFoundException) {
+            logger.error("Ljubimac nije pronađen", e)
+            return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse(
+                    success = false, 
+                    errors = listOf(ApiError(
+                        errorCode = "pet_not_found",
+                        errorDescription = e.message ?: "Ljubimac nije pronađen"
+                    ))
+                ))
+        } catch (e: Exception) {
+            logger.error("Greška prilikom dobavljanja podataka o vlasniku ljubimca", e)
             throw e
         }
     }

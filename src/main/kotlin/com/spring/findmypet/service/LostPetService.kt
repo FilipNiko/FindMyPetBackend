@@ -274,6 +274,9 @@ class LostPetService(
         )
     }
     
+    @Transactional(readOnly = true)
+    fun findById(id: Long) = lostPetRepository.findById(id)
+    
     private fun getMainPhotoUrl(pet: LostPet): String {
         return if (pet.photos.isNotEmpty()) {
             // Ovde možeš dodati kompletan URL fotografije
