@@ -5,6 +5,7 @@ import com.spring.findmypet.domain.exception.ResourceNotFoundException
 import com.spring.findmypet.domain.model.User
 import com.spring.findmypet.repository.UserRepository
 import com.spring.findmypet.service.FileStorageService
+import com.spring.findmypet.service.FirebaseMessagingService
 import com.spring.findmypet.service.MessageService
 import com.spring.findmypet.service.WebSocketService
 import org.slf4j.LoggerFactory
@@ -20,7 +21,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
-import java.nio.charset.StandardCharsets
 
 @RestController
 @RequestMapping("/api/messages")
@@ -29,25 +29,10 @@ class MessageController(
     private val messagingTemplate: SimpMessagingTemplate,
     private val webSocketService: WebSocketService,
     private val userRepository: UserRepository,
+    private val firebaseMessagingService: FirebaseMessagingService,
     private val fileStorageService: FileStorageService
 ) {
     private val logger = LoggerFactory.getLogger(MessageController::class.java)
-
-    @PostMapping
-    fun sendMessage(
-        @AuthenticationPrincipal userDetails: UserDetails,
-        @RequestBody messageRequest: MessageRequest
-    ): ResponseEntity<ApiResponse<MessageDto>> {
-        val userId = (userDetails as User).id
-        logger.info("Korisnik $userId šalje poruku korisniku ${messageRequest.receiverId}")
-
-        return try {
-            val messageDto = processSendMessage(userId!!, messageRequest)
-            ResponseEntity.ok(ApiResponse(success = true, result = messageDto))
-        } catch (e: Exception) {
-            handleGenericException(e, "Greška pri slanju poruke")
-        }
-    }
 
     @GetMapping("/conversations")
     fun getConversations(
@@ -66,55 +51,6 @@ class MessageController(
         }
     }
 
-    @GetMapping("/conversations/{conversationId}")
-    fun getMessagesFromConversation(
-        @AuthenticationPrincipal userDetails: UserDetails,
-        @PathVariable conversationId: Long,
-        @RequestParam(defaultValue = "0") page: Int,
-        @RequestParam(defaultValue = "50") size: Int
-    ): ResponseEntity<ApiResponse<MessagePageResponse>> {
-        val userId = (userDetails as User).id
-        logger.info("Korisnik $userId traži poruke iz konverzacije $conversationId (strana $page, veličina $size)")
-
-        return try {
-            val messagesPage = messageService.findMessagesInConversationPaginated(userId!!, conversationId, page, size)
-            ResponseEntity.ok(ApiResponse(success = true, result = messagesPage))
-        } catch (e: ResourceNotFoundException) {
-            handleResourceNotFoundException(e, "Konverzacija nije pronađena", userId, conversationId)
-        } catch (e: Exception) {
-            handleGenericException(e, "Greška pri dobavljanju poruka")
-        }
-    }
-
-    @PutMapping("/conversations/{conversationId}/read")
-    fun markMessagesAsRead(
-        @AuthenticationPrincipal userDetails: UserDetails,
-        @PathVariable conversationId: Long
-    ): ResponseEntity<ApiResponse<Boolean>> {
-        val userId = (userDetails as User).id
-        logger.info("Korisnik $userId označava poruke kao pročitane u konverzaciji $conversationId")
-
-        return try {
-            val conversation = messageService.markMessagesAsRead(userId!!, conversationId)
-            val otherUserId = if (userId == conversation.user1.id) conversation.user2.id!! else conversation.user1.id!!
-            val messageIds = messageService.getMessageIdsInConversation(conversationId)
-
-            webSocketService.sendReadStatusToUser(
-                userId = otherUserId,
-                conversationId = conversationId,
-                messageIds = messageIds,
-                readByUserId = userId,
-                readByUserName = userDetails.getFullName()
-            )
-
-            ResponseEntity.ok(ApiResponse(success = true, result = true))
-        } catch (e: ResourceNotFoundException) {
-            handleResourceNotFoundException(e, "Konverzacija nije pronađena", userId, conversationId)
-        } catch (e: Exception) {
-            handleGenericException(e, "Greška pri označavanju poruka kao pročitanih")
-        }
-    }
-
     @MessageMapping("/chat")
     fun processMessage(@Payload messageRequest: MessageRequest, headerAccessor: SimpMessageHeaderAccessor) {
         logger.info("WEBSOCKET-DEBUG: Primljena nova poruka na /app/chat endpoint: $messageRequest")
@@ -126,7 +62,11 @@ class MessageController(
             logger.info("WebSocket: Korisnik $userId šalje poruku korisniku ${messageRequest.receiverId}")
 
             val messageDto = messageService.sendMessage(userId, messageRequest)
+            val conversation = messageService.findConversationBetweenUsers(userId, messageRequest.receiverId)
+
             sendWebSocketMessage(userId, messageRequest.receiverId, messageDto)
+            sendPushNotification(userId, user, messageRequest.receiverId, messageDto, conversation.id!!)
+            
         } catch (e: Exception) {
             logWebSocketError("Greška pri slanju poruke", e)
         }
@@ -146,7 +86,6 @@ class MessageController(
             throw RuntimeException("Greška pri slanju WebSocket poruke", e)
         }
     }
-
 
     @MessageMapping("/read")
     fun markMessagesAsRead(@Payload conversationId: String, headerAccessor: SimpMessageHeaderAccessor) {
@@ -237,87 +176,6 @@ class MessageController(
         }
     }
 
-    @PostMapping("/image")
-    fun sendImageMessage(
-        @AuthenticationPrincipal userDetails: UserDetails,
-        @RequestBody messageRequest: MessageRequest
-    ): ResponseEntity<ApiResponse<MessageDto>> {
-        val userId = (userDetails as User).id!!
-        logger.info("Korisnik $userId šalje sliku korisniku ${messageRequest.receiverId}")
-
-        val imageRequest = messageRequest.copy(messageType = MessageType.IMAGE)
-
-        return try {
-            val messageDto = processSendMessage(userId, imageRequest)
-            ResponseEntity.ok(ApiResponse(success = true, result = messageDto))
-        } catch (e: Exception) {
-            handleGenericException(e, "Greška pri slanju poruke sa slikom")
-        }
-    }
-
-    @PostMapping("/location")
-    fun sendLocationMessage(
-        @AuthenticationPrincipal userDetails: UserDetails,
-        @RequestBody messageRequest: MessageRequest
-    ): ResponseEntity<ApiResponse<MessageDto>> {
-        val userId = (userDetails as User).id!!
-        logger.info("Korisnik $userId šalje lokaciju korisniku ${messageRequest.receiverId}")
-
-        validateLocationData(messageRequest)?.let { return it }
-
-        val locationRequest = messageRequest.copy(messageType = MessageType.LOCATION)
-
-        return try {
-            val messageDto = processSendMessage(userId, locationRequest)
-            ResponseEntity.ok(ApiResponse(success = true, result = messageDto))
-        } catch (e: Exception) {
-            handleGenericException(e, "Greška pri slanju poruke sa lokacijom")
-        }
-    }
-    
-    private fun validateLocationData(messageRequest: MessageRequest): ResponseEntity<ApiResponse<MessageDto>>? {
-        if (messageRequest.latitude == null || messageRequest.longitude == null) {
-            val apiError = ApiError(
-                errorCode = "INVALID_REQUEST",
-                errorDescription = "Koordinate lokacije su obavezne"
-            )
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse(success = false, errors = listOf(apiError)))
-        }
-
-        if (messageRequest.address == null) {
-            val apiError = ApiError(
-                errorCode = "INVALID_REQUEST",
-                errorDescription = "Tekstualna adresa lokacije je obavezna"
-            )
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse(success = false, errors = listOf(apiError)))
-        }
-        
-        return null
-    }
-
-    private fun <T> handleResourceNotFoundException(
-        e: ResourceNotFoundException,
-        defaultErrorDescription: String,
-        userId: Long?,
-        resourceId: Long? = null
-    ): ResponseEntity<ApiResponse<T>> {
-        val logMessage = if (resourceId != null) {
-            "Resurs $resourceId nije pronađen za korisnika $userId"
-        } else {
-            "Resurs nije pronađen za korisnika $userId"
-        }
-        logger.warn(logMessage, e)
-        
-        val apiError = ApiError(
-            errorCode = "RESOURCE_NOT_FOUND",
-            errorDescription = e.message ?: defaultErrorDescription
-        )
-        return ResponseEntity.status(HttpStatus.NOT_FOUND)
-            .body(ApiResponse(success = false, errors = listOf(apiError)))
-    }
-
     private fun <T> handleGenericException(
         e: Exception,
         defaultErrorDescription: String
@@ -362,18 +220,50 @@ class MessageController(
         logger.error("WebSocket: Detalji greške: ${e.message}")
     }
 
-    private fun processSendMessage(userId: Long, messageRequest: MessageRequest): MessageDto {
-        val messageDto = messageService.sendMessage(userId, messageRequest)
-        val conversation = messageService.findConversationBetweenUsers(userId, messageRequest.receiverId)
-
-        webSocketService.sendMessageToBothUsers(
-            senderUserId = userId,
-            receiverUserId = messageRequest.receiverId,
-            messageDto = messageDto,
-            conversationId = conversation.id!!
-        )
-
-        logger.info("Poruka uspešno poslata i notifikacije poslate obema stranama")
-        return messageDto
+    private fun sendPushNotification(
+        senderId: Long,
+        sender: User,
+        receiverId: Long,
+        messageDto: MessageDto,
+        conversationId: Long
+    ) {
+        try {
+            val receiver = userRepository.findById(receiverId).orElseThrow {
+                ResourceNotFoundException("Korisnik sa ID-om $receiverId nije pronađen")
+            }
+            
+            val receiverToken = receiver.getFirebaseToken()
+            
+            if (!receiverToken.isNullOrBlank()) {
+                val title = sender.getFullName()
+                val body = when (messageDto.messageType) {
+                    MessageType.TEXT -> messageDto.content
+                    MessageType.IMAGE -> "Poslao/la vam je sliku"
+                    MessageType.LOCATION -> "Podelio/la je lokaciju sa vama"
+                    else -> "Nova poruka"
+                }
+                
+                val notificationData = mapOf(
+                    "conversationId" to conversationId.toString(),
+                    "senderId" to senderId.toString(),
+                    "senderName" to sender.getFullName(),
+                    "messageType" to messageDto.messageType.name
+                )
+                
+                val firebaseMessage = FirebaseMessage(
+                    title = title,
+                    body = body.take(100),
+                    type = NotificationType.NEW_MESSAGE,
+                    data = notificationData
+                )
+                
+                firebaseMessagingService.sendNotification(receiverToken, firebaseMessage)
+                logger.info("Firebase notifikacija poslata korisniku: ${receiver.getUsername()}")
+            } else {
+                logger.info("Korisnik nema Firebase token, push notifikacija nije poslata: ${receiver.getUsername()}")
+            }
+        } catch (e: Exception) {
+            logger.error("Greška pri slanju Firebase notifikacije", e)
+        }
     }
 } 

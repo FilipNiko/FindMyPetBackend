@@ -33,6 +33,9 @@ dependencies {
 	runtimeOnly("io.jsonwebtoken:jjwt-impl:0.11.5")
 	runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.11.5")
 	
+	// Firebase Admin SDK
+	implementation("com.google.firebase:firebase-admin:9.4.3")
+	
 	// MySQL Driver
 	runtimeOnly("com.mysql:mysql-connector-j")
 	

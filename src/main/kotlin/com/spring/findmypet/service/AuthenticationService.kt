@@ -13,6 +13,7 @@ import com.spring.findmypet.domain.model.User
 import com.spring.findmypet.domain.validation.ValidationMessages
 import com.spring.findmypet.repository.TokenRepository
 import com.spring.findmypet.repository.UserRepository
+import org.slf4j.LoggerFactory
 import org.springframework.security.authentication.AuthenticationManager
 import org.springframework.security.authentication.BadCredentialsException
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
@@ -28,6 +29,7 @@ class AuthenticationService(
     private val jwtService: JwtService,
     private val authenticationManager: AuthenticationManager
 ) {
+    private val logger = LoggerFactory.getLogger(AuthenticationService::class.java)
 
     @Transactional
     fun register(request: RegisterRequest): AuthResponse {
@@ -41,6 +43,11 @@ class AuthenticationService(
             phoneNumber = request.phoneNumber,
             password = passwordEncoder.encode(request.password)
         )
+        
+        if (!request.firebaseToken.isNullOrBlank()) {
+            user.setFirebaseToken(request.firebaseToken)
+            logger.info("Postavljen Firebase token za novog korisnika: ${request.email}")
+        }
 
         val savedUser = userRepository.save(user)
         val accessToken = jwtService.generateToken(user)
@@ -72,6 +79,12 @@ class AuthenticationService(
 
         val user = userRepository.findByEmail(request.email)
             .orElseThrow { ResourceNotFoundException(ValidationMessages.USER_NOT_FOUND) }
+        
+        if (!request.firebaseToken.isNullOrBlank()) {
+            user.setFirebaseToken(request.firebaseToken)
+            userRepository.save(user)
+            logger.info("Ažuriran Firebase token za korisnika: ${request.email}")
+        }
         
         val accessToken = jwtService.generateToken(user)
         val refreshToken = jwtService.generateRefreshToken(user)

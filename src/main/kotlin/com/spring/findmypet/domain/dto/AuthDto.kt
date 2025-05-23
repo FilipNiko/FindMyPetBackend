@@ -25,7 +25,9 @@ data class RegisterRequest(
     val phoneNumber: String,
 
     @field:Password
-    val password: String
+    val password: String,
+
+    val firebaseToken: String? = null
 )
 
 data class LoginRequest(
@@ -34,7 +36,9 @@ data class LoginRequest(
     val email: String,
 
     @field:NotBlank(message = "Lozinka je obavezna")
-    val password: String
+    val password: String,
+
+    val firebaseToken: String? = null
 )
 
 data class AuthResponse(

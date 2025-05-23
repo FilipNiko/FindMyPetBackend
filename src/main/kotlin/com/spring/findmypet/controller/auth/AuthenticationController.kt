@@ -1,10 +1,6 @@
 package com.spring.findmypet.controller.auth
 
-import com.spring.findmypet.domain.dto.ApiResponse
-import com.spring.findmypet.domain.dto.AuthResponse
-import com.spring.findmypet.domain.dto.LoginRequest
-import com.spring.findmypet.domain.dto.RefreshTokenRequest
-import com.spring.findmypet.domain.dto.RegisterRequest
+import com.spring.findmypet.domain.dto.*
 import com.spring.findmypet.service.AuthenticationService
 import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
