@@ -1,11 +1,9 @@
 package com.spring.findmypet.domain.model
 
+import com.spring.findmypet.domain.dto.MessageType
 import jakarta.persistence.*
 import java.time.LocalDateTime
 
-/**
- * Entitet koji predstavlja poruku u konverzaciji
- */
 @Entity
 @Table(name = "messages")
 class Message(
@@ -23,6 +21,19 @@ class Message(
     
     @Column(nullable = false)
     val content: String,
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "message_type", nullable = false)
+    val messageType: MessageType = MessageType.TEXT,
+    
+    @Column(name = "latitude")
+    val latitude: Double? = null,
+    
+    @Column(name = "longitude")
+    val longitude: Double? = null,
+    
+    @Column(name = "address", length = 512)
+    val address: String? = null,
     
     @Column(name = "sent_at", nullable = false)
     val sentAt: LocalDateTime = LocalDateTime.now(),

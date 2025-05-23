@@ -1,18 +1,15 @@
 package com.spring.findmypet.controller
 
-import com.spring.findmypet.domain.dto.ApiResponse
-import com.spring.findmypet.domain.dto.ConversationDto
-import com.spring.findmypet.domain.dto.MessageDto
-import com.spring.findmypet.domain.dto.MessageRequest
-import com.spring.findmypet.domain.dto.MessageResponseDto
-import com.spring.findmypet.domain.dto.TypingStatusRequest
+import com.spring.findmypet.domain.dto.*
 import com.spring.findmypet.domain.exception.ResourceNotFoundException
 import com.spring.findmypet.domain.model.User
 import com.spring.findmypet.repository.UserRepository
+import com.spring.findmypet.service.FileStorageService
 import com.spring.findmypet.service.MessageService
 import com.spring.findmypet.service.WebSocketService
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.messaging.handler.annotation.MessageMapping
 import org.springframework.messaging.handler.annotation.Payload
@@ -22,141 +19,86 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.web.bind.annotation.*
+import org.springframework.web.multipart.MultipartFile
 import java.nio.charset.StandardCharsets
 
-/**
- * Kontroler za REST endpointe za rukovanje porukama
- */
 @RestController
 @RequestMapping("/api/messages")
 class MessageController(
     private val messageService: MessageService,
     private val messagingTemplate: SimpMessagingTemplate,
     private val webSocketService: WebSocketService,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val fileStorageService: FileStorageService
 ) {
     private val logger = LoggerFactory.getLogger(MessageController::class.java)
 
-    /**
-     * Endpoint za slanje poruke
-     * Poruka se šalje putem REST API-ja, ali se notifikacije šalju i preko WebSocketa
-     */
     @PostMapping
     fun sendMessage(
         @AuthenticationPrincipal userDetails: UserDetails,
         @RequestBody messageRequest: MessageRequest
     ): ResponseEntity<ApiResponse<MessageDto>> {
-        val userId = (userDetails as User).id!!
+        val userId = (userDetails as User).id
         logger.info("Korisnik $userId šalje poruku korisniku ${messageRequest.receiverId}")
 
-        try {
-            // Šaljemo poruku preko servisa
-            val messageDto = messageService.sendMessage(userId, messageRequest)
-            
-            // Dobavljamo konverzaciju da bismo znali njen ID
-            val conversation = messageService.findConversationBetweenUsers(userId, messageRequest.receiverId)
-            
-            // Šaljemo WebSocket notifikacije obema stranama
-            webSocketService.sendMessageToBothUsers(
-                senderUserId = userId,
-                receiverUserId = messageRequest.receiverId,
-                messageDto = messageDto,
-                conversationId = conversation.id!!
-            )
-
-            logger.info("Poruka uspešno poslata i notifikacije poslate obema stranama")
-            return ResponseEntity.ok(ApiResponse(success = true, result = messageDto))
-            
+        return try {
+            val messageDto = processSendMessage(userId!!, messageRequest)
+            ResponseEntity.ok(ApiResponse(success = true, result = messageDto))
         } catch (e: Exception) {
-            logger.error("Greška pri slanju poruke", e)
-            val apiError = com.spring.findmypet.domain.dto.ApiError(
-                errorCode = "SERVER_ERROR",
-                errorDescription = e.message ?: "Greška pri slanju poruke"
-            )
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse(success = false, errors = listOf(apiError)))
+            handleGenericException(e, "Greška pri slanju poruke")
         }
     }
-    
-    /**
-     * Endpoint za dobijanje svih konverzacija korisnika
-     */
+
     @GetMapping("/conversations")
     fun getConversations(
-        @AuthenticationPrincipal userDetails: UserDetails
-    ): ResponseEntity<ApiResponse<List<ConversationDto>>> {
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "20") size: Int
+    ): ResponseEntity<ApiResponse<ConversationPageResponse>> {
         val userId = (userDetails as User).id!!
-        logger.info("Korisnik $userId traži svoje konverzacije")
-        
-        try {
-            val conversations = messageService.findConversationsForUser(userId)
-            return ResponseEntity.ok(ApiResponse(success = true, result = conversations))
+        logger.info("Korisnik $userId traži svoje konverzacije (strana $page, veličina $size)")
+
+        return try {
+            val conversationsPage = messageService.findConversationsForUserPaginated(userId, page, size)
+            ResponseEntity.ok(ApiResponse(success = true, result = conversationsPage))
         } catch (e: Exception) {
-            logger.error("Greška pri dobavljanju konverzacija", e)
-            val apiError = com.spring.findmypet.domain.dto.ApiError(
-                errorCode = "SERVER_ERROR",
-                errorDescription = e.message ?: "Greška pri dobavljanju konverzacija"
-            )
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse(success = false, errors = listOf(apiError)))
+            handleGenericException(e, "Greška pri dobavljanju konverzacija")
         }
     }
-    
-    /**
-     * Endpoint za dobijanje poruka iz određene konverzacije
-     */
+
     @GetMapping("/conversations/{conversationId}")
     fun getMessagesFromConversation(
         @AuthenticationPrincipal userDetails: UserDetails,
-        @PathVariable conversationId: Long
-    ): ResponseEntity<ApiResponse<List<MessageDto>>> {
-        val userId = (userDetails as User).id!!
-        logger.info("Korisnik $userId traži poruke iz konverzacije $conversationId")
-        
-        try {
-            val messages = messageService.findMessagesInConversation(userId, conversationId)
-            return ResponseEntity.ok(ApiResponse(success = true, result = messages))
+        @PathVariable conversationId: Long,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "50") size: Int
+    ): ResponseEntity<ApiResponse<MessagePageResponse>> {
+        val userId = (userDetails as User).id
+        logger.info("Korisnik $userId traži poruke iz konverzacije $conversationId (strana $page, veličina $size)")
+
+        return try {
+            val messagesPage = messageService.findMessagesInConversationPaginated(userId!!, conversationId, page, size)
+            ResponseEntity.ok(ApiResponse(success = true, result = messagesPage))
         } catch (e: ResourceNotFoundException) {
-            logger.warn("Konverzacija $conversationId nije pronađena za korisnika $userId", e)
-            val apiError = com.spring.findmypet.domain.dto.ApiError(
-                errorCode = "RESOURCE_NOT_FOUND",
-                errorDescription = e.message ?: "Konverzacija nije pronađena"
-            )
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse(success = false, errors = listOf(apiError)))
+            handleResourceNotFoundException(e, "Konverzacija nije pronađena", userId, conversationId)
         } catch (e: Exception) {
-            logger.error("Greška pri dobavljanju poruka", e)
-            val apiError = com.spring.findmypet.domain.dto.ApiError(
-                errorCode = "SERVER_ERROR",
-                errorDescription = e.message ?: "Greška pri dobavljanju poruka"
-            )
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse(success = false, errors = listOf(apiError)))
+            handleGenericException(e, "Greška pri dobavljanju poruka")
         }
     }
-    
-    /**
-     * Endpoint za označavanje svih poruka u konverzaciji kao pročitanih
-     */
+
     @PutMapping("/conversations/{conversationId}/read")
     fun markMessagesAsRead(
         @AuthenticationPrincipal userDetails: UserDetails,
         @PathVariable conversationId: Long
     ): ResponseEntity<ApiResponse<Boolean>> {
-        val userId = (userDetails as User).id!!
+        val userId = (userDetails as User).id
         logger.info("Korisnik $userId označava poruke kao pročitane u konverzaciji $conversationId")
-        
-        try {
-            // Označi poruke kao pročitane i dobij konverzaciju
-            val conversation = messageService.markMessagesAsRead(userId, conversationId)
-            
-            // Identifikuj ID drugog korisnika u konverzaciji
+
+        return try {
+            val conversation = messageService.markMessagesAsRead(userId!!, conversationId)
             val otherUserId = if (userId == conversation.user1.id) conversation.user2.id!! else conversation.user1.id!!
-            
-            // Dobij ID-eve poruka koje su označene kao pročitane
             val messageIds = messageService.getMessageIdsInConversation(conversationId)
-            
-            // Pošalji WebSocket obaveštenje drugom korisniku
+
             webSocketService.sendReadStatusToUser(
                 userId = otherUserId,
                 conversationId = conversationId,
@@ -164,247 +106,107 @@ class MessageController(
                 readByUserId = userId,
                 readByUserName = userDetails.getFullName()
             )
-            
-            return ResponseEntity.ok(ApiResponse(success = true, result = true))
+
+            ResponseEntity.ok(ApiResponse(success = true, result = true))
         } catch (e: ResourceNotFoundException) {
-            logger.warn("Konverzacija $conversationId nije pronađena za korisnika $userId", e)
-            val apiError = com.spring.findmypet.domain.dto.ApiError(
-                errorCode = "RESOURCE_NOT_FOUND",
-                errorDescription = e.message ?: "Konverzacija nije pronađena"
-            )
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse(success = false, errors = listOf(apiError)))
+            handleResourceNotFoundException(e, "Konverzacija nije pronađena", userId, conversationId)
         } catch (e: Exception) {
-            logger.error("Greška pri označavanju poruka kao pročitanih", e)
-            val apiError = com.spring.findmypet.domain.dto.ApiError(
-                errorCode = "SERVER_ERROR",
-                errorDescription = e.message ?: "Greška pri označavanju poruka kao pročitanih"
-            )
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse(success = false, errors = listOf(apiError)))
+            handleGenericException(e, "Greška pri označavanju poruka kao pročitanih")
         }
     }
 
     @MessageMapping("/chat")
     fun processMessage(@Payload messageRequest: MessageRequest, headerAccessor: SimpMessageHeaderAccessor) {
-        logger.info("WEBSOCKET-DEBUG: Primljena nova poruka na /app/chat endpoint")
-        logger.info("WEBSOCKET-DEBUG: Sadržaj poruke: $messageRequest")
-        logger.info("WEBSOCKET-DEBUG: SessionId: ${headerAccessor.sessionId}, SessionAttributes: ${headerAccessor.sessionAttributes}")
+        logger.info("WEBSOCKET-DEBUG: Primljena nova poruka na /app/chat endpoint: $messageRequest")
         
         try {
-            // Dobavljanje korisničkog ID-a iz autentifikacije
-            val authentication = headerAccessor.user as? UsernamePasswordAuthenticationToken
-            logger.info("WEBSOCKET-DEBUG: Authentication objekat: $authentication")
-            
-            val user = authentication?.principal as? User
-            logger.info("WEBSOCKET-DEBUG: User objekat: ${user}, isNull: ${user == null}")
-            
-            if (user == null || user.id == null) {
-                logger.error("WebSocket: Korisnik nije autentifikovan ili je ID null")
-                return
-            }
-            
+            val user = extractUserFromHeaderAccessor(headerAccessor) ?: return
             val userId = user.id!!
+            
             logger.info("WebSocket: Korisnik $userId šalje poruku korisniku ${messageRequest.receiverId}")
-        
+
             val messageDto = messageService.sendMessage(userId, messageRequest)
-            logger.info("WEBSOCKET-DEBUG: Poruka uspešno sačuvana u bazi, ID: ${messageDto.id}")
-            
-            // Kreiranje poruke koja će biti poslata
-            val messagePayload = mapOf(
-                "messageData" to messageDto, 
-                "conversationId" to messageService.findConversationBetweenUsers(userId, messageRequest.receiverId).id
-            )
-            logger.info("WEBSOCKET-DEBUG: Pripremljen payload za slanje: $messagePayload")
-            
-            // Detaljno logovanje pre slanja notifikacije
-            logger.info("WebSocket: Šaljem notifikaciju primaocu ${messageRequest.receiverId} na destinaciju /user/${messageRequest.receiverId}/queue/messages")
-            
-            // Pošalji notifikaciju primaocu poruke
-            try {
-                messagingTemplate.convertAndSendToUser(
-                    messageRequest.receiverId.toString(),
-                    "/queue/messages",
-                    messagePayload
-                )
-                logger.info("WEBSOCKET-DEBUG: Poruka uspešno poslata primaocu ${messageRequest.receiverId}")
-            } catch (e: Exception) {
-                logger.error("WEBSOCKET-DEBUG: Greška pri slanju poruke primaocu", e)
-            }
-            
-            // Detaljno logovanje pre slanja notifikacije pošiljaocu
-            logger.info("WebSocket: Šaljem notifikaciju pošiljaocu $userId na destinaciju /user/$userId/queue/messages")
-            
-            // Pošalji notifikaciju i pošiljaocu (da vidi svoju poruku)
-            try {
-                messagingTemplate.convertAndSendToUser(
-                    userId.toString(),
-                    "/queue/messages",
-                    messagePayload
-                )
-                logger.info("WEBSOCKET-DEBUG: Poruka uspešno poslata pošiljaocu $userId")
-            } catch (e: Exception) {
-                logger.error("WEBSOCKET-DEBUG: Greška pri slanju poruke pošiljaocu", e)
-            }
-            
-            logger.info("WebSocket: Poruka uspešno poslata obema stranama")
+            sendWebSocketMessage(userId, messageRequest.receiverId, messageDto)
         } catch (e: Exception) {
-            logger.error("WebSocket: Greška pri slanju poruke", e)
-            logger.error("WEBSOCKET-DEBUG: Detalji greške: ${e.message}")
-            logger.error("WEBSOCKET-DEBUG: Stack trace: ", e)
+            logWebSocketError("Greška pri slanju poruke", e)
         }
     }
     
-    @MessageMapping("/read")
-    fun markMessagesAsReadSocket(@Payload payload: Any, headerAccessor: SimpMessageHeaderAccessor) {
+    private fun sendWebSocketMessage(senderUserId: Long, receiverId: Long, messageDto: MessageDto) {
         try {
-            // Dobavljanje korisničkog ID-a iz autentifikacije
-            val authentication = headerAccessor.user as? UsernamePasswordAuthenticationToken
-            val user = authentication?.principal as? User
+            val conversationId = messageService.findConversationBetweenUsers(senderUserId, receiverId).id
+            val payload = mapOf("messageData" to messageDto, "conversationId" to conversationId)
+
+            sendToUser(receiverId, "/queue/messages", payload, "primaocu")
+
+            sendToUser(senderUserId, "/queue/messages", payload, "pošiljaocu")
             
-            if (user == null || user.id == null) {
-                logger.error("WebSocket: Korisnik nije autentifikovan ili je ID null")
-                return
-            }
-            
+            logger.info("WebSocket: Poruka uspešno poslata obema stranama")
+        } catch (e: Exception) {
+            throw RuntimeException("Greška pri slanju WebSocket poruke", e)
+        }
+    }
+
+
+    @MessageMapping("/read")
+    fun markMessagesAsRead(@Payload conversationId: String, headerAccessor: SimpMessageHeaderAccessor) {
+        try {
+            val user = extractUserFromHeaderAccessor(headerAccessor) ?: return
             val userId = user.id!!
             
-            // Ispisivanje stvarnog tipa i sadržaja payload-a za dijagnostiku
-            logger.info("WebSocket: Tip payload-a je ${payload.javaClass.name}, vrednost: $payload")
-            
-            // Konvertujemo payload u Long, sa posebnim rukovanjem za byte[]
-            val conversationId = when (payload) {
-                is Long -> payload
-                is String -> payload.toLongOrNull()
-                is Number -> payload.toLong()
-                is ByteArray -> {
-                    // Konvertovanje ByteArray u String, pa u Long
-                    val payloadStr = String(payload, StandardCharsets.UTF_8)
-                    logger.info("WebSocket: Konvertovan ByteArray u String: '$payloadStr'")
-                    payloadStr.toLongOrNull()
-                }
-                else -> {
-                    // Pokušajmo konvertovati pozivom toString
-                    try {
-                        payload.toString().toLongOrNull()
-                    } catch (e: Exception) {
-                        logger.error("WebSocket: Neispravan format za conversationId: $payload")
-                        null
-                    }
-                }
-            }
-            
-            if (conversationId == null) {
-                logger.error("WebSocket: Nije moguće konvertovati '$payload' u conversationId")
-                return
-            }
-            
             logger.info("WebSocket: Korisnik $userId označava poruke kao pročitane u konverzaciji $conversationId")
-        
-            // Označi poruke kao pročitane
-            val conversation = messageService.markMessagesAsRead(userId, conversationId)
             
-            // Pošalji obaveštenje da su poruke pročitane drugom korisniku
+            val conversation = messageService.markMessagesAsRead(userId, conversationId.toLong())
             val otherUserId = if (userId == conversation.user1.id) conversation.user2.id else conversation.user1.id
-            
-            // Detaljno logovanje pre slanja notifikacije o pročitanom statusu
-            logger.info("WebSocket: Šaljem notifikaciju o pročitanim porukama korisniku $otherUserId na destinaciju /user/$otherUserId/queue/read-status")
-            
-            // Logovanje celokupne poruke koja se šalje
+
             val readStatusMessage = mapOf(
                 "conversationId" to conversationId,
                 "readByUserId" to userId
             )
-            logger.info("WebSocket: Poruka o pročitanom statusu: $readStatusMessage")
             
-            messagingTemplate.convertAndSendToUser(
-                otherUserId.toString(),
-                "/queue/read-status",
-                readStatusMessage
-            )
-            
+            sendToUser(otherUserId!!, "/queue/read-status", readStatusMessage, "za status čitanja")
             logger.info("WebSocket: Poruke uspešno označene kao pročitane")
         } catch (e: Exception) {
-            logger.error("WebSocket: Greška pri označavanju poruka kao pročitanih", e)
+            logWebSocketError("Greška pri označavanju poruka kao pročitanih", e)
         }
     }
 
-    /**
-     * Endpoint za dobijanje poruka sa drugim korisnikom
-     * Koristi ID drugog korisnika umesto ID-a konverzacije
-     * Vraća objekat koji sadrži informacije o konverzaciji i listu poruka
-     */
     @GetMapping("/user/{otherUserId}")
-    fun getMessagesWithUser(
+    fun getUserMessages(
         @AuthenticationPrincipal userDetails: UserDetails,
-        @PathVariable otherUserId: Long
-    ): ResponseEntity<ApiResponse<MessageResponseDto>> {
+        @PathVariable otherUserId: Long,
+        @RequestParam(defaultValue = "0") page: Int,
+        @RequestParam(defaultValue = "50") size: Int
+    ): ResponseEntity<ApiResponse<MessagePageResponse>> {
         val userId = (userDetails as User).id!!
-        logger.info("Korisnik $userId traži poruke sa korisnikom $otherUserId")
-        
-        try {
-            // Pronađi korisnika sa kojim komuniciramo
-            val otherUser = userRepository.findById(otherUserId)
-                .orElseThrow { ResourceNotFoundException("Korisnik sa ID-om $otherUserId nije pronađen") }
-            
-            // Pronađi konverzaciju između trenutnog korisnika i drugog korisnika
-            val conversation = messageService.findConversationBetweenUsers(userId, otherUserId)
-            
-            // Dobavi poruke iz te konverzacije
-            val messages = messageService.findMessagesInConversation(userId, conversation.id!!)
-            
-            // Kreiraj objekat sa svim potrebnim informacijama
-            val responseDto = MessageResponseDto(
-                conversationId = conversation.id!!,
-                otherUserName = otherUser.getFullName(),
-                otherUserPhone = otherUser.getPhoneNumber(),
-                messages = messages
-            )
-            
-            logger.info("Vraćam MessageResponseDto objekat sa ${messages.size} poruka")
-            
-            return ResponseEntity.ok(ApiResponse(success = true, result = responseDto))
+        logger.info("Korisnik $userId traži poruke sa korisnikom $otherUserId (strana $page, veličina $size)")
+
+        return try {
+            val messagesPage = messageService.findMessagesBetweenUsersPaginated(userId, otherUserId, page, size)
+            ResponseEntity.ok(ApiResponse(success = true, result = messagesPage))
         } catch (e: ResourceNotFoundException) {
             logger.warn("Konverzacija između korisnika $userId i $otherUserId nije pronađena", e)
-            val apiError = com.spring.findmypet.domain.dto.ApiError(
+            val apiError = ApiError(
                 errorCode = "RESOURCE_NOT_FOUND",
                 errorDescription = e.message ?: "Konverzacija nije pronađena"
             )
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse(success = false, errors = listOf(apiError)))
         } catch (e: Exception) {
-            logger.error("Greška pri dobavljanju poruka", e)
-            val apiError = com.spring.findmypet.domain.dto.ApiError(
-                errorCode = "SERVER_ERROR",
-                errorDescription = e.message ?: "Greška pri dobavljanju poruka"
-            )
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse(success = false, errors = listOf(apiError)))
+            handleGenericException(e, "Greška pri dobavljanju poruka")
         }
     }
 
-    /**
-     * WebSocket endpoint za praćenje kada korisnik kuca poruku
-     */
     @MessageMapping("/typing")
     fun processTypingStatus(@Payload typingRequest: TypingStatusRequest, headerAccessor: SimpMessageHeaderAccessor) {
-        logger.info("WEBSOCKET-DEBUG: Primljena informacija o kucanju na /app/typing endpoint")
-        logger.info("WEBSOCKET-DEBUG: Sadržaj zahteva: $typingRequest")
-        
+        logger.info("WEBSOCKET-DEBUG: Primljena informacija o kucanju: $typingRequest")
+
         try {
-            // Dobavljanje korisničkog ID-a iz autentifikacije
-            val authentication = headerAccessor.user as? UsernamePasswordAuthenticationToken
-            val user = authentication?.principal as? User
-            
-            if (user == null || user.id == null) {
-                logger.error("WebSocket: Korisnik nije autentifikovan ili je ID null")
-                return
-            }
-            
+            val user = extractUserFromHeaderAccessor(headerAccessor) ?: return
             val userId = user.id!!
-            logger.info("WebSocket: Korisnik $userId ${if(typingRequest.isTyping) "počinje" else "prestaje"} da kuca poruku korisniku ${typingRequest.receiverId}")
             
-            // Pošalji WebSocket notifikaciju o statusu kucanja
+            logger.info("WebSocket: Korisnik $userId ${if (typingRequest.isTyping) "počinje" else "prestaje"} da kuca poruku korisniku ${typingRequest.receiverId}")
+
             webSocketService.sendTypingStatusToUser(
                 senderUserId = userId,
                 senderUserName = user.getFullName(),
@@ -412,12 +214,166 @@ class MessageController(
                 conversationId = typingRequest.conversationId,
                 isTyping = typingRequest.isTyping
             )
-            
+
             logger.info("WebSocket: Status kucanja uspešno poslat")
         } catch (e: Exception) {
-            logger.error("WebSocket: Greška pri slanju statusa kucanja", e)
-            logger.error("WEBSOCKET-DEBUG: Detalji greške: ${e.message}")
-            logger.error("WEBSOCKET-DEBUG: Stack trace: ", e)
+            logWebSocketError("Greška pri slanju statusa kucanja", e)
         }
+    }
+
+    @PostMapping("/upload-image", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])
+    fun uploadImage(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @RequestParam("file") file: MultipartFile
+    ): ResponseEntity<ApiResponse<String>> {
+        val userId = (userDetails as User).id!!
+        logger.info("Korisnik $userId otprema sliku za poruku")
+
+        return try {
+            val fileUrl = fileStorageService.storeFile(file)
+            ResponseEntity.ok(ApiResponse(success = true, result = fileUrl))
+        } catch (e: Exception) {
+            handleGenericException(e, "Greška pri otpremanju slike")
+        }
+    }
+
+    @PostMapping("/image")
+    fun sendImageMessage(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @RequestBody messageRequest: MessageRequest
+    ): ResponseEntity<ApiResponse<MessageDto>> {
+        val userId = (userDetails as User).id!!
+        logger.info("Korisnik $userId šalje sliku korisniku ${messageRequest.receiverId}")
+
+        val imageRequest = messageRequest.copy(messageType = MessageType.IMAGE)
+
+        return try {
+            val messageDto = processSendMessage(userId, imageRequest)
+            ResponseEntity.ok(ApiResponse(success = true, result = messageDto))
+        } catch (e: Exception) {
+            handleGenericException(e, "Greška pri slanju poruke sa slikom")
+        }
+    }
+
+    @PostMapping("/location")
+    fun sendLocationMessage(
+        @AuthenticationPrincipal userDetails: UserDetails,
+        @RequestBody messageRequest: MessageRequest
+    ): ResponseEntity<ApiResponse<MessageDto>> {
+        val userId = (userDetails as User).id!!
+        logger.info("Korisnik $userId šalje lokaciju korisniku ${messageRequest.receiverId}")
+
+        validateLocationData(messageRequest)?.let { return it }
+
+        val locationRequest = messageRequest.copy(messageType = MessageType.LOCATION)
+
+        return try {
+            val messageDto = processSendMessage(userId, locationRequest)
+            ResponseEntity.ok(ApiResponse(success = true, result = messageDto))
+        } catch (e: Exception) {
+            handleGenericException(e, "Greška pri slanju poruke sa lokacijom")
+        }
+    }
+    
+    private fun validateLocationData(messageRequest: MessageRequest): ResponseEntity<ApiResponse<MessageDto>>? {
+        if (messageRequest.latitude == null || messageRequest.longitude == null) {
+            val apiError = ApiError(
+                errorCode = "INVALID_REQUEST",
+                errorDescription = "Koordinate lokacije su obavezne"
+            )
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse(success = false, errors = listOf(apiError)))
+        }
+
+        if (messageRequest.address == null) {
+            val apiError = ApiError(
+                errorCode = "INVALID_REQUEST",
+                errorDescription = "Tekstualna adresa lokacije je obavezna"
+            )
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse(success = false, errors = listOf(apiError)))
+        }
+        
+        return null
+    }
+
+    private fun <T> handleResourceNotFoundException(
+        e: ResourceNotFoundException,
+        defaultErrorDescription: String,
+        userId: Long?,
+        resourceId: Long? = null
+    ): ResponseEntity<ApiResponse<T>> {
+        val logMessage = if (resourceId != null) {
+            "Resurs $resourceId nije pronađen za korisnika $userId"
+        } else {
+            "Resurs nije pronađen za korisnika $userId"
+        }
+        logger.warn(logMessage, e)
+        
+        val apiError = ApiError(
+            errorCode = "RESOURCE_NOT_FOUND",
+            errorDescription = e.message ?: defaultErrorDescription
+        )
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(ApiResponse(success = false, errors = listOf(apiError)))
+    }
+
+    private fun <T> handleGenericException(
+        e: Exception,
+        defaultErrorDescription: String
+    ): ResponseEntity<ApiResponse<T>> {
+        logger.error(defaultErrorDescription, e)
+        val apiError = ApiError(
+            errorCode = "SERVER_ERROR",
+            errorDescription = e.message ?: defaultErrorDescription
+        )
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(ApiResponse(success = false, errors = listOf(apiError)))
+    }
+    
+    private fun extractUserFromHeaderAccessor(headerAccessor: SimpMessageHeaderAccessor): User? {
+        val authentication = headerAccessor.user as? UsernamePasswordAuthenticationToken
+        val user = authentication?.principal as? User
+        
+        if (user?.id == null) {
+            logger.error("WebSocket: Korisnik nije autentifikovan ili je ID null")
+            return null
+        }
+        
+        return user
+    }
+    
+    private fun sendToUser(userId: Long, destination: String, payload: Any, recipientDescription: String) {
+        try {
+            messagingTemplate.convertAndSendToUser(
+                userId.toString(),
+                destination,
+                payload
+            )
+            logger.info("WebSocket: Poruka uspešno poslata $recipientDescription $userId")
+        } catch (e: Exception) {
+            logger.error("WebSocket: Greška pri slanju poruke $recipientDescription $userId", e)
+            throw e
+        }
+    }
+    
+    private fun logWebSocketError(message: String, e: Exception) {
+        logger.error("WebSocket: $message", e)
+        logger.error("WebSocket: Detalji greške: ${e.message}")
+    }
+
+    private fun processSendMessage(userId: Long, messageRequest: MessageRequest): MessageDto {
+        val messageDto = messageService.sendMessage(userId, messageRequest)
+        val conversation = messageService.findConversationBetweenUsers(userId, messageRequest.receiverId)
+
+        webSocketService.sendMessageToBothUsers(
+            senderUserId = userId,
+            receiverUserId = messageRequest.receiverId,
+            messageDto = messageDto,
+            conversationId = conversation.id!!
+        )
+
+        logger.info("Poruka uspešno poslata i notifikacije poslate obema stranama")
+        return messageDto
     }
 } 

@@ -1,11 +1,13 @@
 package com.spring.findmypet.domain.dto
 
-/**
- * DTO koji sadrži informacije o konverzaciji i listu poruka
- */
-data class MessageResponseDto(
+data class MessagePageResponse(
     val conversationId: Long,
     val otherUserName: String,
     val otherUserPhone: String?,
-    val messages: List<MessageDto>
+    val content: List<MessageDto>,
+    val page: Int,
+    val size: Int,
+    val totalElements: Long,
+    val totalPages: Int,
+    val last: Boolean
 ) 

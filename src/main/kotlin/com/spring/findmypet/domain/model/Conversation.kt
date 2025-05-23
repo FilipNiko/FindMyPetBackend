@@ -1,11 +1,9 @@
 package com.spring.findmypet.domain.model
 
+import com.spring.findmypet.domain.dto.MessageType
 import jakarta.persistence.*
 import java.time.LocalDateTime
 
-/**
- * Entitet koji predstavlja konverzaciju između dva korisnika
- */
 @Entity
 @Table(name = "conversations")
 class Conversation(
@@ -29,6 +27,10 @@ class Conversation(
     
     @Column(name = "last_message_time", nullable = false)
     var lastMessageTime: LocalDateTime = LocalDateTime.now(),
+    
+    @Enumerated(EnumType.STRING)
+    @Column(name = "last_message_type")
+    var lastMessageType: MessageType? = null,
     
     @OneToMany(mappedBy = "conversation", cascade = [CascadeType.ALL], orphanRemoval = true)
     val messages: MutableList<Message> = mutableListOf()
