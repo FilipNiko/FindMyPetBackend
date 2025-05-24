@@ -26,6 +26,9 @@ application:
       refresh-token:
         expiration: 604800000 # 7 days
 
+firebase:
+  config-file: firebase-service-account.json
+
 logging:
   level:
     root: INFO

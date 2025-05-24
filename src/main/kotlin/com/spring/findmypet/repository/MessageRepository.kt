@@ -27,6 +27,9 @@ interface MessageRepository : JpaRepository<Message, Long> {
         @Param("user") user: User
     ): Int
 
+    @Query("SELECT COUNT(m) FROM Message m JOIN m.conversation c WHERE (c.user1 = :user OR c.user2 = :user) AND m.sender != :user AND m.isRead = false")
+    fun countTotalUnreadMessagesForUser(@Param("user") user: User): Int
+
     @Query("SELECT m FROM Message m WHERE m.conversation = :conversation ORDER BY m.sentAt DESC")
     fun findTopByConversationOrderBySentAtDesc(@Param("conversation") conversation: Conversation, pageable: Pageable): List<Message>
 
