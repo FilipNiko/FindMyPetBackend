@@ -20,8 +20,7 @@ data class LostPetDetailResponse(
     val photos: List<String>,
     val distance: String,
     val distanceInMeters: Double,
-    
-    // Informacije o vlasniku
+
     val owner: OwnerInfo
 )
 
@@ -29,5 +28,6 @@ data class OwnerInfo(
     val id: Long,
     val fullName: String,
     val email: String,
-    val phoneNumber: String?
+    val phoneNumber: String?,
+    val avatarId: String
 ) 

@@ -29,6 +29,9 @@ data class User(
 
     @Column(name = "firebase_token")
     private var firebaseToken: String? = null,
+    
+    @Column(name = "avatar_id")
+    private var avatarId: String = "INITIALS",
 
     @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL])
     private var tokens: MutableList<Token> = mutableListOf()
@@ -53,6 +56,7 @@ data class User(
     fun getPhoneNumber(): String = phoneNumber
     fun getRole(): Role = role
     fun getFirebaseToken(): String? = firebaseToken
+    fun getAvatarId(): String = avatarId
     
     fun setFullName(name: String) {
         this.fullName = name
@@ -64,6 +68,10 @@ data class User(
     
     fun setFirebaseToken(token: String?) {
         this.firebaseToken = token
+    }
+    
+    fun setAvatarId(avatar: String) {
+        this.avatarId = avatar
     }
 
     override fun toString(): String {

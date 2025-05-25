@@ -1,11 +1,6 @@
 package com.spring.findmypet.service
 
-import com.spring.findmypet.domain.dto.ConversationDto
-import com.spring.findmypet.domain.dto.ConversationPageResponse
-import com.spring.findmypet.domain.dto.MessageDto
-import com.spring.findmypet.domain.dto.MessagePageResponse
-import com.spring.findmypet.domain.dto.MessageRequest
-import com.spring.findmypet.domain.dto.MessageType
+import com.spring.findmypet.domain.dto.*
 import com.spring.findmypet.domain.exception.ResourceNotFoundException
 import com.spring.findmypet.domain.model.Conversation
 import com.spring.findmypet.domain.model.Message
@@ -14,12 +9,10 @@ import com.spring.findmypet.repository.ConversationRepository
 import com.spring.findmypet.repository.MessageRepository
 import com.spring.findmypet.repository.UserRepository
 import org.slf4j.LoggerFactory
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
-import org.springframework.data.domain.PageRequest
-import org.springframework.data.domain.Pageable
-import kotlin.math.ceil
 
 @Service
 class MessageService(
@@ -147,6 +140,7 @@ class MessageService(
                 id = conversation.id!!,
                 otherUserId = otherUser.id!!,
                 otherUserName = getUserFullName(otherUser),
+                otherUserAvatarId = otherUser.getAvatarId(),
                 lastMessage = lastMessage?.content,
                 lastMessageType = lastMessage?.messageType,
                 lastMessageSenderId = lastMessage?.sender?.id,
@@ -196,6 +190,7 @@ class MessageService(
             conversationId = conversationId,
             otherUserName = getUserFullName(otherUser),
             otherUserPhone = otherUser.getPhoneNumber(),
+            otherUserAvatarId = otherUser.getAvatarId(),
             content = messagesDto,
             page = page,
             size = size,

@@ -4,6 +4,7 @@ data class MessagePageResponse(
     val conversationId: Long,
     val otherUserName: String,
     val otherUserPhone: String?,
+    val otherUserAvatarId: String,
     val content: List<MessageDto>,
     val page: Int,
     val size: Int,

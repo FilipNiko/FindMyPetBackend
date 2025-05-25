@@ -45,6 +45,31 @@ class UserController(
         }
     }
     
+    @PutMapping("/avatar")
+    fun updateAvatar(
+        @AuthenticationPrincipal userDetails: User,
+        @Valid @RequestBody request: UpdateAvatarRequest
+    ): ResponseEntity<ApiResponse<UpdateAvatarResponse>> {
+        logger.info("Zahtev za promenu avatara korisnika: ${userDetails.getUsername()}")
+        
+        return try {
+            val updatedAvatarId = userService.updateUserAvatar(userDetails.id!!, request.avatarId)
+            ResponseEntity.ok(ApiResponse(
+                success = true, 
+                result = UpdateAvatarResponse(success = true, avatarId = updatedAvatarId)
+            ))
+        } catch (e: IllegalArgumentException) {
+            val apiError = ApiError(
+                errorCode = "INVALID_AVATAR_ID",
+                errorDescription = e.message ?: "Nevažeći ID avatara"
+            )
+            ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse(success = false, errors = listOf(apiError)))
+        } catch (e: Exception) {
+            handleGenericException(e, "Greška pri promeni avatara korisnika")
+        }
+    }
+    
     @PutMapping("/password")
     fun updatePassword(
         @AuthenticationPrincipal userDetails: User,

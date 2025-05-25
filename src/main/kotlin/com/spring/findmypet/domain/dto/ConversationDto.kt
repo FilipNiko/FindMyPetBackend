@@ -6,6 +6,7 @@ data class ConversationDto(
     val id: Long,
     val otherUserId: Long,
     val otherUserName: String,
+    val otherUserAvatarId: String,
     val lastMessage: String?,
     val lastMessageType: MessageType? = null,
     val lastMessageSenderId: Long? = null,

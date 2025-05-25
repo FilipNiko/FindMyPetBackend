@@ -29,7 +29,8 @@ class UserService(
         return UserInfoResponse(
             fullName = user.getFullName(),
             email = user.getUsername(),
-            unreadMessagesCount = unreadCount
+            unreadMessagesCount = unreadCount,
+            avatarId = user.getAvatarId()
         )
     }
     
@@ -47,8 +48,31 @@ class UserService(
         return UserInfoResponse(
             fullName = updatedUser.getFullName(),
             email = updatedUser.getUsername(),
-            unreadMessagesCount = unreadCount
+            unreadMessagesCount = unreadCount,
+            avatarId = updatedUser.getAvatarId()
         )
+    }
+    
+    @Transactional
+    fun updateUserAvatar(userId: Long, avatarId: String): String {
+        val user = getUserById(userId)
+        
+        validateAvatarId(avatarId)
+        
+        user.setAvatarId(avatarId)
+        val updatedUser = userRepository.save(user)
+        
+        logger.info("Ažuriran avatar korisnika ${user.getUsername()} u $avatarId")
+        
+        return updatedUser.getAvatarId()
+    }
+    
+    private fun validateAvatarId(avatarId: String) {
+        val validAvatarIds = listOf("DOG", "CAT", "RABBIT", "BIRD", "HAMSTER", "TURTLE", "GUINEA_PIG", "LIZARD", "INITIALS")
+        
+        if (avatarId !in validAvatarIds) {
+            throw IllegalArgumentException("Nevažeći ID avatara: $avatarId. Dozvoljene vrednosti su: ${validAvatarIds.joinToString(", ")}")
+        }
     }
     
     @Transactional

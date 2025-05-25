@@ -106,10 +106,7 @@ class LostPetController(
             throw e
         }
     }
-    
-    /**
-     * Endpoint za dobijanje podataka o vlasniku ljubimca
-     */
+
     @GetMapping("/{id}/owner")
     fun getPetOwner(
         @PathVariable id: Long,
@@ -125,7 +122,8 @@ class LostPetController(
                 id = lostPet.user.id ?: throw IllegalStateException("User ID is null"),
                 fullName = lostPet.user.getFullName(),
                 email = lostPet.user.getUsername(),
-                phoneNumber = lostPet.user.getPhoneNumber()
+                phoneNumber = lostPet.user.getPhoneNumber(),
+                avatarId = lostPet.user.getAvatarId()
             )
             
             logger.info("Uspešno vraćeni podaci o vlasniku ljubimca: ${ownerInfo.fullName}")

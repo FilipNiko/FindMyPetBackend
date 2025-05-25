@@ -5,7 +5,8 @@ import com.spring.findmypet.domain.validation.Password
 data class UserInfoResponse(
     val fullName: String,
     val email: String,
-    val unreadMessagesCount: Int
+    val unreadMessagesCount: Int,
+    val avatarId: String
 )
 
 data class UpdateNameRequest(
@@ -21,4 +22,13 @@ data class UpdatePasswordRequest(
 
 data class UpdatePasswordResponse(
     val success: Boolean
+)
+
+data class UpdateAvatarRequest(
+    val avatarId: String
+)
+
+data class UpdateAvatarResponse(
+    val success: Boolean,
+    val avatarId: String
 ) 

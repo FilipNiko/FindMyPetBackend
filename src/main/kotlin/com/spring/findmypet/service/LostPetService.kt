@@ -250,7 +250,8 @@ class LostPetService(
             id = owner.id ?: throw IllegalStateException("User ID is null"),
             fullName = owner.getFullName(),
             email = owner.getUsername(),
-            phoneNumber = owner.getPhoneNumber()
+            phoneNumber = owner.getPhoneNumber(),
+            avatarId = owner.getAvatarId()
         )
         
         return LostPetDetailResponse(
