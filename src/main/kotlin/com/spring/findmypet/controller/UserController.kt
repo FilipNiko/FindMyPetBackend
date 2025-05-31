@@ -97,6 +97,27 @@ class UserController(
         }
     }
     
+    @PutMapping("/notifications")
+    fun updateNotificationSettings(
+        @AuthenticationPrincipal userDetails: User,
+        @Valid @RequestBody request: NotificationSettingsRequest
+    ): ResponseEntity<ApiResponse<NotificationSettingsResponse>> {
+        logger.info("Zahtev za ažuriranje postavki notifikacija za korisnika: ${userDetails.getUsername()}")
+        
+        return try {
+            val result = userService.updateNotificationSettings(
+                userId = userDetails.id!!,
+                receiveNotifications = request.receiveNotifications,
+                radius = request.notificationRadius,
+                latitude = request.latitude,
+                longitude = request.longitude
+            )
+            ResponseEntity.ok(ApiResponse(success = true, result = result))
+        } catch (e: Exception) {
+            handleGenericException(e, "Greška pri ažuriranju postavki notifikacija")
+        }
+    }
+    
     private fun <T> handleGenericException(
         e: Exception,
         defaultErrorDescription: String

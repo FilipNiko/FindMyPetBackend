@@ -38,7 +38,6 @@ class LostPetController(
         logger.info("Autentifikovani korisnik: ${user.username}")
         
         try {
-            // Validacija
             val validationErrors = validationService.validate(request)
             if (validationErrors.isNotEmpty()) {
                 logger.error("Validacione greške za ljubimce: ${validationErrors.map { it.errorCode }}")

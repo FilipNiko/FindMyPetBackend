@@ -19,7 +19,9 @@ import kotlin.math.ceil
 class LostPetService(
     private val lostPetRepository: LostPetRepository,
     private val geoService: GeoService,
-    private val timeFormatService: TimeFormatService
+    private val timeFormatService: TimeFormatService,
+    private val userService: UserService,
+    private val firebaseMessagingService: FirebaseMessagingService
 ) {
     private val logger = LoggerFactory.getLogger(LostPetService::class.java)
 
@@ -62,6 +64,8 @@ class LostPetService(
             val savedPet = lostPetRepository.save(lostPet)
             logger.info("Uspešno sačuvana prijava izgubljenog ljubimca sa ID: ${savedPet.id}")
 
+            sendPushNotificationsToNearbyUsers(savedPet)
+
             return LostPetResponse(
                 id = savedPet.id,
                 petType = savedPet.petType,
@@ -80,6 +84,43 @@ class LostPetService(
         } catch (e: Exception) {
             logger.error("Greška prilikom kreiranja prijave izgubljenog ljubimca", e)
             throw e
+        }
+    }
+
+    private fun sendPushNotificationsToNearbyUsers(lostPet: LostPet) {
+        try {
+            logger.info("Tražim korisnike u blizini za slanje push notifikacija o izgubljenom ljubimcu ID: ${lostPet.id}")
+            
+            val nearbyUsers = userService.findUsersInRadius(
+                latitude = lostPet.latitude,
+                longitude = lostPet.longitude,
+                lostPetId = lostPet.id
+            )
+            
+            logger.info("Pronađeno ${nearbyUsers.size} korisnika za slanje push notifikacija")
+            
+            nearbyUsers.forEach { user ->
+                val firebaseToken = user.getFirebaseToken()
+                if (firebaseToken != null) {
+                    val message = FirebaseMessage(
+                        title = "Neko je izgubio kućnog ljubimca u vašoj blizini",
+                        body = lostPet.title,
+                        type = NotificationType.LOST_PET_NEARBY,
+                        data = mapOf(
+                            "lostPetId" to lostPet.id.toString(),
+                            "latitude" to lostPet.latitude.toString(),
+                            "longitude" to lostPet.longitude.toString()
+                        )
+                    )
+                    
+                    firebaseMessagingService.sendNotification(firebaseToken, message)
+                    logger.debug("Poslata push notifikacija korisniku: ${user.getUsername()}")
+                }
+            }
+            
+            logger.info("Uspešno poslate push notifikacije korisnicima u blizini")
+        } catch (e: Exception) {
+            logger.error("Greška prilikom slanja push notifikacija", e)
         }
     }
 

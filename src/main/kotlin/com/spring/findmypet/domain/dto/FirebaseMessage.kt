@@ -16,4 +16,5 @@ data class FirebaseMessage(
 
 enum class NotificationType {
     NEW_MESSAGE,
+    LOST_PET_NEARBY,
 } 

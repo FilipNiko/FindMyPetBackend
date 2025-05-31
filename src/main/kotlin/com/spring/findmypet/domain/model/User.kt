@@ -32,6 +32,18 @@ data class User(
     
     @Column(name = "avatar_id")
     private var avatarId: String = "INITIALS",
+    
+    @Column(name = "receive_notifications")
+    private var receiveNotifications: Boolean = false,
+    
+    @Column(name = "notification_radius")
+    private var notificationRadius: Int = 0,
+    
+    @Column(name = "notification_latitude")
+    private var notificationLatitude: Double? = null,
+    
+    @Column(name = "notification_longitude")
+    private var notificationLongitude: Double? = null,
 
     @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL])
     private var tokens: MutableList<Token> = mutableListOf()
@@ -57,6 +69,10 @@ data class User(
     fun getRole(): Role = role
     fun getFirebaseToken(): String? = firebaseToken
     fun getAvatarId(): String = avatarId
+    fun getReceiveNotifications(): Boolean = receiveNotifications
+    fun getNotificationRadius(): Int = notificationRadius
+    fun getNotificationLatitude(): Double? = notificationLatitude
+    fun getNotificationLongitude(): Double? = notificationLongitude
     
     fun setFullName(name: String) {
         this.fullName = name
@@ -72,6 +88,19 @@ data class User(
     
     fun setAvatarId(avatar: String) {
         this.avatarId = avatar
+    }
+    
+    fun setReceiveNotifications(receive: Boolean) {
+        this.receiveNotifications = receive
+    }
+    
+    fun setNotificationRadius(radius: Int) {
+        this.notificationRadius = radius
+    }
+    
+    fun setNotificationLocation(latitude: Double?, longitude: Double?) {
+        this.notificationLatitude = latitude
+        this.notificationLongitude = longitude
     }
 
     override fun toString(): String {

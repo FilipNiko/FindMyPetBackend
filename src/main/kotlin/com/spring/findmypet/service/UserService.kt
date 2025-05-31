@@ -1,6 +1,7 @@
 package com.spring.findmypet.service
 
 import com.spring.findmypet.domain.dto.UserInfoResponse
+import com.spring.findmypet.domain.dto.NotificationSettingsResponse
 import com.spring.findmypet.domain.exception.InvalidCredentialsException
 import com.spring.findmypet.domain.exception.ResourceNotFoundException
 import com.spring.findmypet.domain.model.User
@@ -30,7 +31,11 @@ class UserService(
             fullName = user.getFullName(),
             email = user.getUsername(),
             unreadMessagesCount = unreadCount,
-            avatarId = user.getAvatarId()
+            avatarId = user.getAvatarId(),
+            receiveNotifications = user.getReceiveNotifications(),
+            notificationRadius = user.getNotificationRadius(),
+            notificationLatitude = user.getNotificationLatitude(),
+            notificationLongitude = user.getNotificationLongitude()
         )
     }
     
@@ -49,7 +54,11 @@ class UserService(
             fullName = updatedUser.getFullName(),
             email = updatedUser.getUsername(),
             unreadMessagesCount = unreadCount,
-            avatarId = updatedUser.getAvatarId()
+            avatarId = updatedUser.getAvatarId(),
+            receiveNotifications = user.getReceiveNotifications(),
+            notificationRadius = user.getNotificationRadius(),
+            notificationLatitude = user.getNotificationLatitude(),
+            notificationLongitude = user.getNotificationLongitude()
         )
     }
     
@@ -89,6 +98,43 @@ class UserService(
         
         logger.info("Uspešno promenjena lozinka za korisnika: ${user.getUsername()}")
         return true
+    }
+    
+    @Transactional
+    fun updateNotificationSettings(
+        userId: Long, 
+        receiveNotifications: Boolean, 
+        radius: Int,
+        latitude: Double?,
+        longitude: Double?
+    ): NotificationSettingsResponse {
+        val user = getUserById(userId)
+        
+        user.setReceiveNotifications(receiveNotifications)
+        user.setNotificationRadius(radius)
+        user.setNotificationLocation(latitude, longitude)
+        
+        val updatedUser = userRepository.save(user)
+        
+        logger.info("Ažurirane postavke notifikacija za korisnika ${user.getUsername()}: primanje=${receiveNotifications}, radius=${radius}km")
+        
+        return NotificationSettingsResponse(
+            success = true,
+            receiveNotifications = updatedUser.getReceiveNotifications(),
+            notificationRadius = updatedUser.getNotificationRadius(),
+            latitude = updatedUser.getNotificationLatitude(),
+            longitude = updatedUser.getNotificationLongitude()
+        )
+    }
+    
+    @Transactional(readOnly = true)
+    fun findUsersInRadius(latitude: Double, longitude: Double, lostPetId: Long): List<User> {
+        logger.info("Tražim korisnike oko lokacije [$latitude, $longitude] za slanje notifikacije o izgubljenom ljubimcu ID: $lostPetId")
+        
+        return userRepository.findUsersForPushNotification(
+            latitude = latitude,
+            longitude = longitude
+        )
     }
     
     fun getUserById(userId: Long): User {
