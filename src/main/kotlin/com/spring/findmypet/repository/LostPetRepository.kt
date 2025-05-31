@@ -2,6 +2,7 @@ package com.spring.findmypet.repository
 
 import com.spring.findmypet.domain.model.LostPet
 import com.spring.findmypet.domain.model.PetType
+import com.spring.findmypet.domain.model.User
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
@@ -12,15 +13,18 @@ import org.springframework.stereotype.Repository
 @Repository
 interface LostPetRepository : JpaRepository<LostPet, Long> {
     
-    fun findAllByPetType(petType: PetType): List<LostPet>
+    fun findAllByPetTypeAndDeletedFalse(petType: PetType): List<LostPet>
     
-    fun findAllByOrderByCreatedAtDesc(): List<LostPet>
+    fun findAllByDeletedFalseOrderByCreatedAtDesc(): List<LostPet>
     
-    fun findByPetTypeOrderByCreatedAtDesc(petType: PetType): List<LostPet>
+    fun findByPetTypeAndDeletedFalseOrderByCreatedAtDesc(petType: PetType): List<LostPet>
+    
+    fun findByUserAndDeletedFalseOrderByCreatedAtDesc(user: User): List<LostPet>
 
     @Query("""
         SELECT lp FROM LostPet lp
-        WHERE (:petType IS NULL OR lp.petType = :petType)
+        WHERE lp.deleted = false
+        AND (:petType IS NULL OR lp.petType = :petType)
         AND (:breed IS NULL OR LOWER(lp.breed) LIKE LOWER(CONCAT('%', :breed, '%')))
         AND (:color IS NULL OR LOWER(lp.color) LIKE LOWER(CONCAT('%', :color, '%')))
         AND (:gender IS NULL OR lp.gender = :gender)
@@ -51,7 +55,8 @@ interface LostPetRepository : JpaRepository<LostPet, Long> {
 
     @Query("""
         SELECT COUNT(lp) FROM LostPet lp
-        WHERE (:petType IS NULL OR lp.petType = :petType)
+        WHERE lp.deleted = false
+        AND (:petType IS NULL OR lp.petType = :petType)
         AND (:breed IS NULL OR LOWER(lp.breed) LIKE LOWER(CONCAT('%', :breed, '%')))
         AND (:color IS NULL OR LOWER(lp.color) LIKE LOWER(CONCAT('%', :color, '%')))
         AND (:gender IS NULL OR lp.gender = :gender)

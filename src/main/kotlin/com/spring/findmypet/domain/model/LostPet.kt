@@ -51,7 +51,13 @@ data class LostPet(
     val photos: List<String>,
 
     @Column(nullable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now()
+    val createdAt: LocalDateTime = LocalDateTime.now(),
+    
+    @Column(nullable = false)
+    var deleted: Boolean = false,
+    
+    @Column
+    var deletedAt: LocalDateTime? = null
 ) {
     override fun toString(): String {
         return "LostPet(id=$id, petType=$petType, title='$title', breed=$breed, color='$color', " +

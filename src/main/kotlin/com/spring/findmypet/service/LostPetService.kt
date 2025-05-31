@@ -3,16 +3,18 @@ package com.spring.findmypet.service
 import com.spring.findmypet.domain.dto.*
 import com.spring.findmypet.domain.model.LostPet
 import com.spring.findmypet.domain.model.PetType
+import com.spring.findmypet.domain.model.Role
 import com.spring.findmypet.domain.model.User
 import com.spring.findmypet.exception.NotFoundException
 import com.spring.findmypet.repository.LostPetRepository
-import com.spring.findmypet.service.GeoService.GeoBoundingBox
 import com.spring.findmypet.util.StringsUtil
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import org.springframework.security.access.AccessDeniedException
+import java.time.LocalDateTime
 import kotlin.math.ceil
 
 @Service
@@ -278,8 +280,7 @@ class LostPetService(
         logger.info("Dohvatanje detalja za nestalog ljubimca sa ID: $id")
         logger.debug("Pozicija korisnika: [${latitude}, ${longitude}]")
         
-        val lostPet = lostPetRepository.findById(id)
-            .orElseThrow { NotFoundException("Nestali ljubimac sa ID: $id nije pronađen") }
+        val lostPet = getLostPetById(id)
 
         val distanceInMeters = geoService.calculateDistance(
             latitude, longitude,
@@ -317,15 +318,56 @@ class LostPetService(
     }
     
     @Transactional(readOnly = true)
-    fun findById(id: Long) = lostPetRepository.findById(id)
+    fun getLostPetById(id: Long): LostPet {
+        return lostPetRepository.findById(id)
+            .orElseThrow { NotFoundException("Lost pet with ID $id not found") }
+            .takeIf { !it.deleted } 
+            ?: throw NotFoundException("Lost pet with ID $id not found or has been deleted")
+    }
+    
+    @Transactional
+    fun softDeleteLostPet(id: Long, currentUser: User) {
+        val lostPet = getLostPetById(id)
+        if (lostPet.user.id != currentUser.id && currentUser.getRole() != Role.ADMIN) {
+            throw AccessDeniedException("You don't have permission to delete this pet report")
+        }
+        
+        lostPet.deleted = true
+        lostPet.deletedAt = LocalDateTime.now()
+        lostPetRepository.save(lostPet)
+        logger.info("Soft deleted lost pet with ID: $id by user: ${currentUser.username}")
+    }
     
     private fun getMainPhotoUrl(pet: LostPet): String {
         return if (pet.photos.isNotEmpty()) {
-            // Ovde možeš dodati kompletan URL fotografije
             "/uploads/${pet.photos.first()}"
         } else {
-            // Podrazumevana slika ako nema fotografija
             "/img/no-image.jpg"
+        }
+    }
+    
+    @Transactional(readOnly = true)
+    fun getUserLostPets(user: User): List<LostPetListItem> {
+        logger.info("Dohvatanje liste nestalih ljubimaca za korisnika: ${user.username}")
+        
+        val lostPets = lostPetRepository.findByUserAndDeletedFalseOrderByCreatedAtDesc(user)
+        logger.info("Pronađeno ${lostPets.size} nestalih ljubimaca za korisnika")
+        
+        return lostPets.map { pet ->
+            LostPetListItem(
+                id = pet.id,
+                mainPhotoUrl = getMainPhotoUrl(pet),
+                timeAgo = timeFormatService.getTimeAgo(pet.createdAt),
+                petName = pet.title,
+                breed = pet.breed,
+                color = pet.color,
+                gender = pet.gender,
+                hasChip = pet.hasChip,
+                ownerName = user.getFullName(),
+                distance = "0 m",
+                petType = pet.petType,
+                allPhotos = pet.photos.map { photo -> "/uploads/$photo" }
+            )
         }
     }
 } 

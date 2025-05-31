@@ -6,6 +6,7 @@ import com.spring.findmypet.domain.dto.LostPetResponse
 import com.spring.findmypet.domain.dto.ReportLostPetRequest
 import com.spring.findmypet.domain.dto.LostPetListRequest
 import com.spring.findmypet.domain.dto.LostPetListResponse
+import com.spring.findmypet.domain.dto.LostPetListItem
 import com.spring.findmypet.domain.dto.LostPetDetailResponse
 import com.spring.findmypet.domain.dto.OwnerInfo
 import com.spring.findmypet.domain.model.User
@@ -16,6 +17,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.security.access.AccessDeniedException
 import org.springframework.web.bind.annotation.*
 import jakarta.validation.Valid
 import jakarta.validation.constraints.DecimalMax
@@ -114,8 +116,7 @@ class LostPetController(
         logger.info("Primljen zahtev za dobijanje podataka o vlasniku ljubimca sa ID: $id")
         
         try {
-            val lostPet = lostPetService.findById(id)
-                .orElseThrow { NotFoundException("Ljubimac sa ID-om $id nije pronađen") }
+            val lostPet = lostPetService.getLostPetById(id)
             
             val ownerInfo = OwnerInfo(
                 id = lostPet.user.id ?: throw IllegalStateException("User ID is null"),
@@ -141,6 +142,64 @@ class LostPetController(
                 ))
         } catch (e: Exception) {
             logger.error("Greška prilikom dobavljanja podataka o vlasniku ljubimca", e)
+            throw e
+        }
+    }
+    
+    @GetMapping("/my-pets")
+    fun getMyLostPets(
+        @AuthenticationPrincipal user: User
+    ): ResponseEntity<ApiResponse<List<LostPetListItem>>> {
+        logger.info("Primljen zahtev za listu izgubljenih ljubimaca korisnika: ${user.username}")
+        
+        try {
+            val result = lostPetService.getUserLostPets(user)
+            logger.info("Uspešno vraćena lista sa ${result.size} izgubljenih ljubimaca korisnika")
+            return ResponseEntity.ok(ApiResponse(success = true, result = result))
+        } catch (e: Exception) {
+            logger.error("Greška prilikom dobavljanja liste izgubljenih ljubimaca korisnika", e)
+            throw e
+        }
+    }
+    
+    @DeleteMapping("/{id}")
+    fun deleteLostPet(
+        @PathVariable id: Long,
+        @AuthenticationPrincipal currentUser: User
+    ): ResponseEntity<ApiResponse<Map<String, String>>> {
+        logger.info("Primljen zahtev za brisanje prijave nestalog ljubimca sa ID: $id od strane korisnika: ${currentUser.username}")
+        
+        try {
+            lostPetService.softDeleteLostPet(id, currentUser)
+            logger.info("Uspešno obrisana prijava nestalog ljubimca sa ID: $id")
+            return ResponseEntity.ok(ApiResponse(
+                success = true, 
+                result = mapOf("message" to "Uspešno obrisana prijava za nestalog ljubimca")
+            ))
+        } catch (e: NotFoundException) {
+            logger.error("Ljubimac nije pronađen", e)
+            return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse(
+                    success = false,
+                    errors = listOf(ApiError(
+                        errorCode = "pet_not_found",
+                        errorDescription = e.message ?: "Ljubimac nije pronađen"
+                    ))
+                ))
+        } catch (e: AccessDeniedException) {
+            logger.error("Nedozvoljena operacija: ${e.message}")
+            return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse(
+                    success = false, 
+                    errors = listOf(ApiError(
+                        errorCode = "access_denied",
+                        errorDescription = e.message ?: "Nedozvoljena operacija"
+                    ))
+                ))
+        } catch (e: Exception) {
+            logger.error("Greška prilikom brisanja prijave nestalog ljubimca", e)
             throw e
         }
     }
