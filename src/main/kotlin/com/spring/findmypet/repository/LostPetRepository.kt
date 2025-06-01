@@ -20,6 +20,10 @@ interface LostPetRepository : JpaRepository<LostPet, Long> {
     fun findByPetTypeAndDeletedFalseOrderByCreatedAtDesc(petType: PetType): List<LostPet>
     
     fun findByUserAndDeletedFalseOrderByCreatedAtDesc(user: User): List<LostPet>
+    
+    fun findByUserAndDeletedFalseOrderByCreatedAtDesc(user: User, pageable: Pageable): Page<LostPet>
+    
+    fun countByDeletedFalse(): Long
 
     @Query("""
         SELECT lp FROM LostPet lp

@@ -14,4 +14,5 @@ object ValidationMessages {
     const val INVALID_CREDENTIALS = "Pogrešan email ili lozinka"
     const val USER_NOT_FOUND = "Korisnik nije pronađen"
     const val INVALID_TOKEN = "Nevažeći token"
+    const val USER_BANNED = "Vaš nalog je banovan"
 } 

@@ -3,6 +3,7 @@ package com.spring.findmypet.config
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.spring.findmypet.domain.dto.ApiResponse
 import com.spring.findmypet.domain.dto.ApiError
+import com.spring.findmypet.domain.model.User
 import io.jsonwebtoken.ExpiredJwtException
 import io.jsonwebtoken.JwtException
 import jakarta.servlet.http.HttpServletResponse
@@ -36,6 +37,24 @@ class JwtExceptionHandler(private val objectMapper: ObjectMapper) {
         )
         
         sendErrorResponse(response, HttpStatus.UNAUTHORIZED, listOf(apiError))
+    }
+    
+    fun handleBannedUser(response: HttpServletResponse, user: User) {
+        logger.warn("Banovan korisnik pokušava pristup: ${user.username}")
+        
+        val banReason = user.getBanReason()
+        val banMessage = if (banReason.isNullOrBlank()) {
+            "Vaš nalog je banovan. Kontaktirajte administratora."
+        } else {
+            "Vaš nalog je banovan. Razlog: $banReason"
+        }
+        
+        val apiError = ApiError(
+            errorCode = "USER_BANNED",
+            errorDescription = banMessage
+        )
+        
+        sendErrorResponse(response, HttpStatus.FORBIDDEN, listOf(apiError))
     }
     
     fun handleGenericException(response: HttpServletResponse, ex: Exception) {

@@ -2,6 +2,7 @@ package com.spring.findmypet.config
 
 import com.spring.findmypet.repository.TokenRepository
 import com.spring.findmypet.service.JwtService
+import com.spring.findmypet.domain.model.User
 import io.jsonwebtoken.ExpiredJwtException
 import io.jsonwebtoken.JwtException
 import jakarta.servlet.FilterChain
@@ -22,6 +23,9 @@ class JwtAuthenticationFilter(
     private val tokenRepository: TokenRepository,
     private val jwtExceptionHandler: JwtExceptionHandler
 ) : OncePerRequestFilter() {
+    
+    private val logger = LoggerFactory.getLogger(JwtAuthenticationFilter::class.java)
+    
     override fun doFilterInternal(
         request: HttpServletRequest,
         response: HttpServletResponse,
@@ -39,10 +43,24 @@ class JwtAuthenticationFilter(
             val userEmail = jwtService.extractUsername(jwt)
 
             if (userEmail != null && SecurityContextHolder.getContext().authentication == null) {
-                val userDetails = userDetailsService.loadUserByUsername(userEmail)
+                val userDetails = userDetailsService.loadUserByUsername(userEmail) as User
                 val isTokenValid = tokenRepository.findByToken(jwt)
                     .map { !it.expired && !it.revoked }
                     .orElse(false)
+
+                if (userDetails.isBanned()) {
+                    logger.warn("Pokušaj pristupa banovnog korisnika: ${userDetails.username}")
+
+                    val userTokens = tokenRepository.findAllValidTokensByUser(userDetails.id!!)
+                    userTokens.forEach { token ->
+                        token.expired = true
+                        token.revoked = true
+                    }
+                    tokenRepository.saveAll(userTokens)
+
+                    jwtExceptionHandler.handleBannedUser(response, userDetails)
+                    return
+                }
 
                 if (jwtService.isTokenValid(jwt, userDetails) && isTokenValid) {
                     val authToken = UsernamePasswordAuthenticationToken(

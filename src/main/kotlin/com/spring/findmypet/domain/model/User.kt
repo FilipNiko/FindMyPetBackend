@@ -4,6 +4,7 @@ import jakarta.persistence.*
 import org.springframework.security.core.GrantedAuthority
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.userdetails.UserDetails
+import java.time.LocalDateTime
 
 @Entity
 @Table(name = "users")
@@ -44,6 +45,15 @@ data class User(
     
     @Column(name = "notification_longitude")
     private var notificationLongitude: Double? = null,
+    
+    @Column(name = "banned")
+    private var banned: Boolean = false,
+    
+    @Column(name = "ban_reason")
+    private var banReason: String? = null,
+    
+    @Column(name = "banned_at")
+    private var bannedAt: LocalDateTime? = null,
 
     @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL])
     private var tokens: MutableList<Token> = mutableListOf()
@@ -58,7 +68,7 @@ data class User(
 
     override fun isAccountNonExpired(): Boolean = true
 
-    override fun isAccountNonLocked(): Boolean = true
+    override fun isAccountNonLocked(): Boolean = !banned
 
     override fun isCredentialsNonExpired(): Boolean = true
 
@@ -73,6 +83,9 @@ data class User(
     fun getNotificationRadius(): Int = notificationRadius
     fun getNotificationLatitude(): Double? = notificationLatitude
     fun getNotificationLongitude(): Double? = notificationLongitude
+    fun isBanned(): Boolean = banned
+    fun getBanReason(): String? = banReason
+    fun getBannedAt(): LocalDateTime? = bannedAt
     
     fun setFullName(name: String) {
         this.fullName = name
@@ -101,6 +114,12 @@ data class User(
     fun setNotificationLocation(latitude: Double?, longitude: Double?) {
         this.notificationLatitude = latitude
         this.notificationLongitude = longitude
+    }
+    
+    fun setBanStatus(banned: Boolean, reason: String? = null) {
+        this.banned = banned
+        this.banReason = reason
+        this.bannedAt = if (banned) LocalDateTime.now() else null
     }
 
     override fun toString(): String {

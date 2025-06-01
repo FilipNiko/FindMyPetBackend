@@ -7,6 +7,7 @@ import com.spring.findmypet.domain.exception.EmailAlreadyExistsException
 import com.spring.findmypet.domain.exception.InvalidCredentialsException
 import com.spring.findmypet.domain.exception.InvalidTokenException
 import com.spring.findmypet.domain.exception.ResourceNotFoundException
+import com.spring.findmypet.domain.exception.UserBannedException
 import com.spring.findmypet.domain.model.Token
 import com.spring.findmypet.domain.model.TokenType
 import com.spring.findmypet.domain.model.User
@@ -66,6 +67,14 @@ class AuthenticationService(
 
     @Transactional
     fun login(request: LoginRequest): AuthResponse {
+        val user = userRepository.findByEmail(request.email)
+            .orElseThrow { ResourceNotFoundException(ValidationMessages.USER_NOT_FOUND) }
+
+        if (user.isBanned()) {
+            logger.warn("Pokušaj prijave banovanog korisnika: ${request.email}, razlog bana: ${user.getBanReason()}")
+            throw UserBannedException(ValidationMessages.USER_BANNED, user.getBanReason())
+        }
+
         try {
             authenticationManager.authenticate(
                 UsernamePasswordAuthenticationToken(
@@ -76,9 +85,6 @@ class AuthenticationService(
         } catch (e: BadCredentialsException) {
             throw InvalidCredentialsException(ValidationMessages.INVALID_CREDENTIALS)
         }
-
-        val user = userRepository.findByEmail(request.email)
-            .orElseThrow { ResourceNotFoundException(ValidationMessages.USER_NOT_FOUND) }
         
         if (!request.firebaseToken.isNullOrBlank()) {
             user.setFirebaseToken(request.firebaseToken)

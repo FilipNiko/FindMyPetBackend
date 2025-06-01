@@ -1,6 +1,8 @@
 package com.spring.findmypet.repository
 
 import com.spring.findmypet.domain.model.User
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
@@ -9,6 +11,7 @@ import java.util.Optional
 interface UserRepository : JpaRepository<User, Long> {
     fun findByEmail(email: String): Optional<User>
     fun existsByEmail(email: String): Boolean
+    fun findByEmailContainingIgnoreCase(email: String, pageable: Pageable): Page<User>
     
     @Query("""
         SELECT u FROM User u 

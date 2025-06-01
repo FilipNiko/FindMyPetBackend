@@ -337,8 +337,8 @@ class LostPetService(
         lostPetRepository.save(lostPet)
         logger.info("Soft deleted lost pet with ID: $id by user: ${currentUser.username}")
     }
-    
-    private fun getMainPhotoUrl(pet: LostPet): String {
+
+    fun getMainPhotoUrl(pet: LostPet): String {
         return if (pet.photos.isNotEmpty()) {
             "/uploads/${pet.photos.first()}"
         } else {

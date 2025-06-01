@@ -73,6 +73,18 @@ class GlobalExceptionHandler {
             .body(ApiResponse(success = false, errors = listOf(apiError)))
     }
     
+    @ExceptionHandler(UserBannedException::class)
+    fun handleUserBannedException(ex: UserBannedException): ResponseEntity<ApiResponse<Any>> {
+        val apiError = ApiError(
+            errorCode = "USER_BANNED",
+            errorDescription = ex.message + (ex.reason?.let { ": $it" } ?: "")
+        )
+        
+        return ResponseEntity
+            .status(HttpStatus.FORBIDDEN)
+            .body(ApiResponse(success = false, errors = listOf(apiError)))
+    }
+    
     @ExceptionHandler(ValidationException::class)
     fun handleValidationException(ex: ValidationException): ResponseEntity<ApiResponse<Any>> {
         val apiError = ApiError(
