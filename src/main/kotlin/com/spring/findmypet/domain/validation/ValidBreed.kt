@@ -1,11 +1,15 @@
 package com.spring.findmypet.domain.validation
 
-import com.spring.findmypet.domain.dto.ReportLostPetRequest
 import com.spring.findmypet.domain.model.PetType
 import jakarta.validation.Constraint
 import jakarta.validation.ConstraintValidator
 import jakarta.validation.ConstraintValidatorContext
 import kotlin.reflect.KClass
+
+interface PetWithBreed {
+    val petType: PetType
+    val breed: String?
+}
 
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)
@@ -16,8 +20,8 @@ annotation class ValidBreed(
     val payload: Array<KClass<*>> = []
 )
 
-class BreedValidator : ConstraintValidator<ValidBreed, ReportLostPetRequest> {
-    override fun isValid(request: ReportLostPetRequest?, context: ConstraintValidatorContext): Boolean {
+class BreedValidator : ConstraintValidator<ValidBreed, PetWithBreed> {
+    override fun isValid(request: PetWithBreed?, context: ConstraintValidatorContext): Boolean {
         if (request == null) return true
 
         if (request.petType != PetType.DOG && request.petType != PetType.CAT) {

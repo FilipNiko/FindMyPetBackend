@@ -4,6 +4,8 @@ import com.spring.findmypet.domain.dto.ApiResponse
 import com.spring.findmypet.domain.dto.ApiError
 import com.spring.findmypet.domain.dto.LostPetResponse
 import com.spring.findmypet.domain.dto.ReportLostPetRequest
+import com.spring.findmypet.domain.dto.UpdateLostPetRequest
+import com.spring.findmypet.domain.dto.LostPetEditFormResponse
 import com.spring.findmypet.domain.dto.LostPetListRequest
 import com.spring.findmypet.domain.dto.LostPetListResponse
 import com.spring.findmypet.domain.dto.LostPetListItem
@@ -162,6 +164,105 @@ class LostPetController(
         }
     }
     
+    @GetMapping("/{id}/edit")
+    fun getLostPetForEdit(
+        @PathVariable id: Long,
+        @AuthenticationPrincipal currentUser: User
+    ): ResponseEntity<ApiResponse<LostPetEditFormResponse>> {
+        logger.info("Primljen zahtev za dohvatanje podataka za editovanje nestalog ljubimca sa ID: $id od strane korisnika: ${currentUser.username}")
+        
+        try {
+            val result = lostPetService.getLostPetForEdit(id, currentUser)
+            logger.info("Uspešno vraćeni podaci za editovanje nestalog ljubimca sa ID: $id")
+            return ResponseEntity.ok(ApiResponse(success = true, result = result))
+        } catch (e: NotFoundException) {
+            logger.error("Ljubimac nije pronađen", e)
+            return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse(
+                    success = false, 
+                    errors = listOf(ApiError(
+                        errorCode = "pet_not_found",
+                        errorDescription = e.message ?: "Ljubimac nije pronađen"
+                    ))
+                ))
+        } catch (e: AccessDeniedException) {
+            logger.error("Korisnik nema dozvolu za editovanje ovog ljubimca", e)
+            return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse(
+                    success = false, 
+                    errors = listOf(ApiError(
+                        errorCode = "access_denied",
+                        errorDescription = e.message ?: "Nemate dozvolu da editujete ovaj oglas"
+                    ))
+                ))
+        } catch (e: Exception) {
+            logger.error("Greška prilikom dohvatanja podataka za editovanje nestalog ljubimca", e)
+            throw e
+        }
+    }
+
+    @PutMapping("/{id}")
+    fun updateLostPet(
+        @PathVariable id: Long,
+        @RequestBody request: UpdateLostPetRequest,
+        @AuthenticationPrincipal currentUser: User
+    ): ResponseEntity<ApiResponse<LostPetResponse>> {
+        logger.info("Primljen zahtev za ažuriranje nestalog ljubimca sa ID: $id od strane korisnika: ${currentUser.username}")
+        logger.debug("Detalji zahteva za ažuriranje: $request")
+
+        if (id != request.id) {
+            logger.error("ID u URL-u ($id) se ne slaže sa ID-om u zahtjevu (${request.id})")
+            return ResponseEntity.badRequest()
+                .body(ApiResponse(
+                    success = false, 
+                    errors = listOf(ApiError(
+                        errorCode = "id_mismatch",
+                        errorDescription = "ID u URL-u se ne slaže sa ID-om u zahtjevu"
+                    ))
+                ))
+        }
+        
+        try {
+            val validationErrors = validationService.validate(request)
+            if (validationErrors.isNotEmpty()) {
+                logger.error("Validacione greške za ažuriranje ljubimca: ${validationErrors.map { it.errorCode }}")
+                return ResponseEntity.badRequest()
+                    .body(ApiResponse(success = false, errors = validationErrors))
+            }
+            
+            val response = lostPetService.updateLostPet(request, currentUser)
+            logger.info("Uspešno ažuriran nestali ljubimac sa ID: ${response.id}")
+            return ResponseEntity.ok(ApiResponse(success = true, result = response))
+        } catch (e: NotFoundException) {
+            logger.error("Ljubimac nije pronađen", e)
+            return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse(
+                    success = false, 
+                    errors = listOf(ApiError(
+                        errorCode = "pet_not_found",
+                        errorDescription = e.message ?: "Ljubimac nije pronađen"
+                    ))
+                ))
+        } catch (e: AccessDeniedException) {
+            logger.error("Korisnik nema dozvolu za editovanje ovog ljubimca", e)
+            return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse(
+                    success = false, 
+                    errors = listOf(ApiError(
+                        errorCode = "access_denied",
+                        errorDescription = e.message ?: "Nemate dozvolu da editujete ovaj oglas"
+                    ))
+                ))
+        } catch (e: Exception) {
+            logger.error("Greška prilikom ažuriranja nestalog ljubimca", e)
+            throw e
+        }
+    }
+
     @DeleteMapping("/{id}")
     fun deleteLostPet(
         @PathVariable id: Long,

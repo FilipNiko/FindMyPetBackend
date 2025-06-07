@@ -338,6 +338,99 @@ class LostPetService(
         logger.info("Soft deleted lost pet with ID: $id by user: ${currentUser.username}")
     }
 
+    @Transactional(readOnly = true)
+    fun getLostPetForEdit(id: Long, currentUser: User): LostPetEditFormResponse {
+        logger.info("Dohvatanje podataka za editovanje nestalog ljubimca sa ID: $id od strane korisnika: ${currentUser.username}")
+        
+        val lostPet = getLostPetById(id)
+
+        if (lostPet.user.id != currentUser.id && currentUser.getRole() != Role.ADMIN) {
+            throw AccessDeniedException("Nemate dozvolu da editujete ovaj oglas za nestalog ljubimca")
+        }
+        
+        logger.info("Korisnik ${currentUser.username} ima dozvolu za editovanje nestalog ljubimca sa ID: $id")
+        
+        return LostPetEditFormResponse(
+            petType = lostPet.petType,
+            title = lostPet.title,
+            breed = lostPet.breed,
+            color = lostPet.color,
+            description = lostPet.description,
+            gender = lostPet.gender,
+            hasChip = lostPet.hasChip,
+            address = lostPet.address,
+            latitude = lostPet.latitude,
+            longitude = lostPet.longitude,
+            photos = lostPet.photos.map { photo -> "/uploads/$photo" }
+        )
+    }
+
+    @Transactional
+    fun updateLostPet(request: UpdateLostPetRequest, currentUser: User): LostPetResponse {
+        logger.info("Započinjem ažuriranje prijave izgubljenog ljubimca sa ID: ${request.id} od strane korisnika: ${currentUser.username}")
+        logger.debug("Detalji zahteva za ažuriranje: $request")
+        
+        try {
+            val existingPet = getLostPetById(request.id)
+
+            if (existingPet.user.id != currentUser.id && currentUser.getRole() != Role.ADMIN) {
+                throw AccessDeniedException("Nemate dozvolu da editujete ovaj oglas za nestalog ljubimca")
+            }
+            
+            logger.info("Korisnik ${currentUser.username} ima dozvolu za editovanje nestalog ljubimca sa ID: ${request.id}")
+
+            val photoNames = request.photos.map { url -> 
+                logger.debug("Procesiranje URL-a fotografije: $url")
+                if (url.startsWith("/uploads/")) {
+                    url.substringAfterLast("/").also { 
+                        logger.debug("Zadržavam postojeći naziv fajla: $it") 
+                    }
+                } else {
+                    url.substringAfterLast("/").also { 
+                        logger.debug("Ekstrahovan naziv fajla: $it") 
+                    }
+                }
+            }
+
+            val updatedPet = existingPet.copy(
+                petType = request.petType,
+                title = request.title,
+                breed = request.breed,
+                color = request.color,
+                description = request.description,
+                gender = request.gender,
+                hasChip = request.hasChip,
+                address = request.address,
+                latitude = request.latitude,
+                longitude = request.longitude,
+                photos = photoNames
+            )
+
+            logger.debug("Kreiran ažurirani objekat izgubljenog ljubimca: $updatedPet")
+            val savedPet = lostPetRepository.save(updatedPet)
+            logger.info("Uspešno ažurirana prijava izgubljenog ljubimca sa ID: ${savedPet.id}")
+
+            return LostPetResponse(
+                id = savedPet.id,
+                petType = savedPet.petType,
+                title = savedPet.title,
+                breed = savedPet.breed,
+                color = savedPet.color,
+                description = savedPet.description,
+                gender = savedPet.gender,
+                hasChip = savedPet.hasChip,
+                address = savedPet.address,
+                latitude = savedPet.latitude,
+                longitude = savedPet.longitude,
+                photos = savedPet.photos,
+                userId = savedPet.user.id ?: throw IllegalStateException("User ID is null")
+            )
+        } catch (e: Exception) {
+            logger.error("Greška prilikom ažuriranja prijave izgubljenog ljubimca", e)
+            throw e
+        }
+    }
+
     fun getMainPhotoUrl(pet: LostPet): String {
         return if (pet.photos.isNotEmpty()) {
             "/uploads/${pet.photos.first()}"
