@@ -33,6 +33,7 @@ interface LostPetRepository : JpaRepository<LostPet, Long> {
         AND (:color IS NULL OR LOWER(lp.color) LIKE LOWER(CONCAT('%', :color, '%')))
         AND (:gender IS NULL OR lp.gender = :gender)
         AND (:hasChip IS NULL OR lp.hasChip = :hasChip)
+        AND (:found IS NULL OR lp.found = :found)
         AND (
             :minLatitude IS NULL OR :maxLatitude IS NULL OR
             :minLongitude IS NULL OR :maxLongitude IS NULL OR
@@ -49,6 +50,7 @@ interface LostPetRepository : JpaRepository<LostPet, Long> {
         @Param("color") color: String?,
         @Param("gender") gender: String?,
         @Param("hasChip") hasChip: Boolean?,
+        @Param("found") found: Boolean?,
         @Param("minLatitude") minLatitude: Double?,
         @Param("maxLatitude") maxLatitude: Double?,
         @Param("minLongitude") minLongitude: Double?,
@@ -65,6 +67,7 @@ interface LostPetRepository : JpaRepository<LostPet, Long> {
         AND (:color IS NULL OR LOWER(lp.color) LIKE LOWER(CONCAT('%', :color, '%')))
         AND (:gender IS NULL OR lp.gender = :gender)
         AND (:hasChip IS NULL OR lp.hasChip = :hasChip)
+        AND (:found IS NULL OR lp.found = :found)
         AND (
             :minLatitude IS NULL OR :maxLatitude IS NULL OR
             :minLongitude IS NULL OR :maxLongitude IS NULL OR
@@ -78,6 +81,7 @@ interface LostPetRepository : JpaRepository<LostPet, Long> {
         @Param("color") color: String?,
         @Param("gender") gender: String?,
         @Param("hasChip") hasChip: Boolean?,
+        @Param("found") found: Boolean?,
         @Param("minLatitude") minLatitude: Double?,
         @Param("maxLatitude") maxLatitude: Double?,
         @Param("minLongitude") minLongitude: Double?,

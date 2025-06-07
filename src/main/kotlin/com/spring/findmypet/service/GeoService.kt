@@ -77,37 +77,34 @@ class GeoService(private val lostPetRepository: LostPetRepository) {
             maxLng = longitude + deltaLng
         )
     }
-    
-    /**
-     * Dobija tačan broj ljubimaca u radijusu
-     */
+
     fun getExactCountInRadius(
         petType: PetType?,
         breed: String?,
         color: String?,
         gender: String?,
         hasChip: Boolean?,
+        found: Boolean?,
         geoBox: GeoBoundingBox,
         latitude: Double,
         longitude: Double,
         radiusKm: Int
     ): Long {
-        // Dobavi sve ljubimce unutar bbox-a
         val allPets = lostPetRepository.findPetsWithFilters(
             petType = petType,
             breed = breed,
             color = color,
             gender = gender,
             hasChip = hasChip,
+            found = found,
             minLatitude = geoBox.minLat,
             maxLatitude = geoBox.maxLat,
             minLongitude = geoBox.minLng,
             maxLongitude = geoBox.maxLng,
-            sortByLatest = false, // Nije bitno sortiranje
+            sortByLatest = false,
             pageable = Pageable.unpaged()
         ).content
-        
-        // Filtriraj samo one koji su zaista unutar radijusa
+
         return allPets.count { pet ->
             val distance = calculateDistance(
                 latitude, longitude,
@@ -122,10 +119,7 @@ class GeoService(private val lostPetRepository: LostPetRepository) {
         repeat(decimals) { multiplier *= 10 }
         return round(this * multiplier) / multiplier
     }
-    
-    /**
-     * Pomocna klasa koja predstavlja geografski okvir
-     */
+
     data class GeoBoundingBox(
         val minLat: Double,
         val maxLat: Double,

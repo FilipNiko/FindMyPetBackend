@@ -1,29 +1,19 @@
 package com.spring.findmypet.controller
 
-import com.spring.findmypet.domain.dto.ApiResponse
-import com.spring.findmypet.domain.dto.ApiError
-import com.spring.findmypet.domain.dto.LostPetResponse
-import com.spring.findmypet.domain.dto.ReportLostPetRequest
-import com.spring.findmypet.domain.dto.UpdateLostPetRequest
-import com.spring.findmypet.domain.dto.LostPetEditFormResponse
-import com.spring.findmypet.domain.dto.LostPetListRequest
-import com.spring.findmypet.domain.dto.LostPetListResponse
-import com.spring.findmypet.domain.dto.LostPetListItem
-import com.spring.findmypet.domain.dto.LostPetDetailResponse
-import com.spring.findmypet.domain.dto.OwnerInfo
+import com.spring.findmypet.domain.dto.*
 import com.spring.findmypet.domain.model.User
 import com.spring.findmypet.domain.validation.ValidationService
 import com.spring.findmypet.exception.NotFoundException
 import com.spring.findmypet.service.LostPetService
-import org.slf4j.LoggerFactory
-import org.springframework.http.HttpStatus
-import org.springframework.http.ResponseEntity
-import org.springframework.security.core.annotation.AuthenticationPrincipal
-import org.springframework.security.access.AccessDeniedException
-import org.springframework.web.bind.annotation.*
 import jakarta.validation.Valid
 import jakarta.validation.constraints.DecimalMax
 import jakarta.validation.constraints.DecimalMin
+import org.slf4j.LoggerFactory
+import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
+import org.springframework.security.access.AccessDeniedException
+import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/api/v1/lost-pets")
@@ -259,6 +249,56 @@ class LostPetController(
                 ))
         } catch (e: Exception) {
             logger.error("Greška prilikom ažuriranja nestalog ljubimca", e)
+            throw e
+        }
+    }
+
+    @PostMapping("/{id}/mark-found")
+    fun markAsFound(
+        @PathVariable id: Long,
+        @AuthenticationPrincipal currentUser: User
+    ): ResponseEntity<ApiResponse<MarkAsFoundResponse>> {
+        logger.info("Primljen zahtev za označavanje nestalog ljubimca kao pronađenog - ID: $id, korisnik: ${currentUser.username}")
+        
+        try {
+            val response = lostPetService.markAsFound(id, currentUser)
+            logger.info("Uspešno označen ljubimac kao pronađen - ID: $id")
+            return ResponseEntity.ok(ApiResponse(success = true, result = response))
+        } catch (e: NotFoundException) {
+            logger.error("Ljubimac nije pronađen", e)
+            return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse(
+                    success = false, 
+                    errors = listOf(ApiError(
+                        errorCode = "pet_not_found",
+                        errorDescription = e.message ?: "Ljubimac nije pronađen"
+                    ))
+                ))
+        } catch (e: AccessDeniedException) {
+            logger.error("Korisnik nema dozvolu da označi ljubimca kao pronađenog", e)
+            return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(ApiResponse(
+                    success = false, 
+                    errors = listOf(ApiError(
+                        errorCode = "access_denied",
+                        errorDescription = e.message ?: "Nemate dozvolu da označite ovaj oglas kao pronađen"
+                    ))
+                ))
+        } catch (e: IllegalStateException) {
+            logger.error("Ljubimac je već označen kao pronađen", e)
+            return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ApiResponse(
+                    success = false, 
+                    errors = listOf(ApiError(
+                        errorCode = "already_found",
+                        errorDescription = e.message ?: "Ljubimac je već označen kao pronađen"
+                    ))
+                ))
+        } catch (e: Exception) {
+            logger.error("Greška prilikom označavanja ljubimca kao pronađenog", e)
             throw e
         }
     }

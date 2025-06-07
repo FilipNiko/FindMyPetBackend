@@ -61,7 +61,9 @@ class AdminService(
                 ownerName = user.getFullName(),
                 distance = "N/A",
                 petType = lostPet.petType,
-                allPhotos = lostPet.photos.map { photo -> "/uploads/$photo" }
+                allPhotos = lostPet.photos.map { photo -> "/uploads/$photo" },
+                found = lostPet.found,
+                foundAt = lostPet.foundAt?.let { timeFormatService.getTimeAgo(it) }
             )
         }
     }

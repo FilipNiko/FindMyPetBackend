@@ -81,7 +81,9 @@ class LostPetService(
                 latitude = savedPet.latitude,
                 longitude = savedPet.longitude,
                 photos = savedPet.photos,
-                userId = savedPet.user.id ?: throw IllegalStateException("User ID is null")
+                userId = savedPet.user.id ?: throw IllegalStateException("User ID is null"),
+                found = savedPet.found,
+                foundAt = savedPet.foundAt
             )
         } catch (e: Exception) {
             logger.error("Greška prilikom kreiranja prijave izgubljenog ljubimca", e)
@@ -129,8 +131,8 @@ class LostPetService(
     @Transactional(readOnly = true)
     fun getLostPetsList(request: LostPetListRequest): LostPetListResponse {
         logger.info("Dohvatanje liste nestalih ljubimaca - lat: ${request.latitude}, lon: ${request.longitude}, radius: ${request.radius}km")
-        logger.debug("Parametri zahteva: filter={}, sortiranje={}, page={}, size={}", 
-                     request.petFilter, request.sortBy, request.page, request.size)
+        logger.debug("Parametri zahteva: filter={}, sortiranje={}, page={}, size={}, found={}", 
+                     request.petFilter, request.sortBy, request.page, request.size, request.found)
         logger.debug("Napredni filteri: breed={}, color={}, gender={}, hasChip={}", 
                      request.breed, request.color, request.gender, request.hasChip)
 
@@ -144,6 +146,8 @@ class LostPetService(
                          else -> null
                      }
 
+        val foundFilter = request.found ?: false
+
         if (request.sortBy == SortType.LATEST) {
             val sortByLatest = true
             val pageable = PageRequest.of(request.page, request.size)
@@ -154,6 +158,7 @@ class LostPetService(
                 color = request.color,
                 gender = request.gender,
                 hasChip = request.hasChip,
+                found = foundFilter,
                 minLatitude = geoBox.minLat,
                 maxLatitude = geoBox.maxLat,
                 minLongitude = geoBox.minLng,
@@ -184,13 +189,15 @@ class LostPetService(
                         ownerName = pet.user.getFullName(),
                         distance = geoService.formatDistance(distance),
                         petType = pet.petType,
-                        allPhotos = pet.photos.map { photo -> "/uploads/$photo" }
+                        allPhotos = pet.photos.map { photo -> "/uploads/$photo" },
+                        found = pet.found,
+                        foundAt = pet.foundAt?.let { timeFormatService.getTimeAgo(it) }
                     )
                 }
 
-            val totalInRadius = if (filteredContent.size < petsPage.content.size) {
+            val totalInRadius = if (request.sortBy == SortType.DISTANCE) {
                 geoService.getExactCountInRadius(
-                    petType, request.breed, request.color, request.gender, request.hasChip,
+                    petType, request.breed, request.color, request.gender, request.hasChip, foundFilter,
                     geoBox, request.latitude, request.longitude, request.radius
                 )
             } else {
@@ -215,6 +222,7 @@ class LostPetService(
                 color = request.color,
                 gender = request.gender,
                 hasChip = request.hasChip,
+                found = foundFilter,
                 minLatitude = geoBox.minLat,
                 maxLatitude = geoBox.maxLat,
                 minLongitude = geoBox.minLng,
@@ -260,7 +268,9 @@ class LostPetService(
                     ownerName = pet.user.getFullName(),
                     distance = geoService.formatDistance(distance),
                     petType = pet.petType,
-                    allPhotos = pet.photos.map { photo -> "/uploads/$photo" }
+                    allPhotos = pet.photos.map { photo -> "/uploads/$photo" },
+                    found = pet.found,
+                    foundAt = pet.foundAt?.let { timeFormatService.getTimeAgo(it) }
                 )
             }
             
@@ -313,7 +323,9 @@ class LostPetService(
             photos = lostPet.photos.map { photo -> "/uploads/$photo" },
             distance = geoService.formatDistance(distanceInMeters),
             distanceInMeters = distanceInMeters,
-            owner = ownerInfo
+            owner = ownerInfo,
+            found = lostPet.found,
+            foundAt = lostPet.foundAt
         )
     }
     
@@ -423,7 +435,9 @@ class LostPetService(
                 latitude = savedPet.latitude,
                 longitude = savedPet.longitude,
                 photos = savedPet.photos,
-                userId = savedPet.user.id ?: throw IllegalStateException("User ID is null")
+                userId = savedPet.user.id ?: throw IllegalStateException("User ID is null"),
+                found = savedPet.found,
+                foundAt = savedPet.foundAt
             )
         } catch (e: Exception) {
             logger.error("Greška prilikom ažuriranja prijave izgubljenog ljubimca", e)
@@ -459,8 +473,37 @@ class LostPetService(
                 ownerName = user.getFullName(),
                 distance = "0 m",
                 petType = pet.petType,
-                allPhotos = pet.photos.map { photo -> "/uploads/$photo" }
+                allPhotos = pet.photos.map { photo -> "/uploads/$photo" },
+                found = pet.found,
+                foundAt = pet.foundAt?.let { timeFormatService.getTimeAgo(it) }
             )
         }
+    }
+
+    @Transactional
+    fun markAsFound(id: Long, currentUser: User): MarkAsFoundResponse {
+        logger.info("Označavanje nestalog ljubimca kao pronađenog - ID: $id, korisnik: ${currentUser.username}")
+        
+        val lostPet = getLostPetById(id)
+        
+        if (lostPet.user.id != currentUser.id && currentUser.getRole() != Role.ADMIN) {
+            throw AccessDeniedException("Nemate dozvolu da označite ovaj oglas kao pronađen")
+        }
+        
+        if (lostPet.found) {
+            logger.warn("Ljubimac sa ID: $id je već označen kao pronađen")
+            throw IllegalStateException("Ljubimac je već označen kao pronađen")
+        }
+        
+        lostPet.found = true
+        lostPet.foundAt = LocalDateTime.now()
+        lostPetRepository.save(lostPet)
+        
+        logger.info("Uspešno označen ljubimac kao pronađen - ID: $id")
+        
+        return MarkAsFoundResponse(
+            success = true,
+            foundAt = lostPet.foundAt!!
+        )
     }
 } 

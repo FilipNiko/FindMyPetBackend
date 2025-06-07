@@ -57,11 +57,18 @@ data class LostPet(
     var deleted: Boolean = false,
     
     @Column
-    var deletedAt: LocalDateTime? = null
+    var deletedAt: LocalDateTime? = null,
+    
+    @Column(nullable = false)
+    var found: Boolean = false,
+    
+    @Column
+    var foundAt: LocalDateTime? = null
 ) {
     override fun toString(): String {
         return "LostPet(id=$id, petType=$petType, title='$title', breed=$breed, color='$color', " +
                "description='$description', gender='$gender', hasChip=$hasChip, address='$address', " +
-               "latitude=$latitude, longitude=$longitude, photos=$photos, createdAt=$createdAt)"
+               "latitude=$latitude, longitude=$longitude, photos=$photos, createdAt=$createdAt, " +
+               "found=$found, foundAt=$foundAt)"
     }
 } 

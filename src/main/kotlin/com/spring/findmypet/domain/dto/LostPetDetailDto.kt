@@ -20,8 +20,9 @@ data class LostPetDetailResponse(
     val photos: List<String>,
     val distance: String,
     val distanceInMeters: Double,
-
-    val owner: OwnerInfo
+    val owner: OwnerInfo,
+    val found: Boolean,
+    val foundAt: LocalDateTime?
 )
 
 data class OwnerInfo(

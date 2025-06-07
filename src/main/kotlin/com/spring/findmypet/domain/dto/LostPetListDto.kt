@@ -18,25 +18,24 @@ data class LostPetListRequest(
     val sortBy: SortType = SortType.DISTANCE,
     
     val petFilter: PetFilter = PetFilter.ALL,
-    
-    // Paginacija
+
     @field:Min(value = 0, message = "Broj stranice mora biti 0 ili veći")
     val page: Int = 0,
     
     @field:Min(value = 1, message = "Veličina stranice mora biti najmanje 1")
     @field:Max(value = 50, message = "Veličina stranice ne može biti veća od 50")
     val size: Int = 10,
-    
-    // Napredni filteri
+
     val breed: String? = null,
     val color: String? = null,
     val hasChip: Boolean? = null,
     val gender: String? = null,
-    
-    // Radijus pretraživanja u kilometrima
+
     @field:Min(value = 1, message = "Radijus mora biti najmanje 1 km")
     @field:Max(value = 100, message = "Radijus ne može biti veći od 100 km")
-    val radius: Int = 5
+    val radius: Int = 5,
+
+    val found: Boolean? = null
 )
 
 data class LostPetListResponse(
@@ -60,7 +59,9 @@ data class LostPetListItem(
     val ownerName: String,
     val distance: String,
     val petType: PetType,
-    val allPhotos: List<String>
+    val allPhotos: List<String>,
+    val found: Boolean,
+    val foundAt: String?
 )
 
 enum class SortType {

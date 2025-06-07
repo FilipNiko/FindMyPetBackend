@@ -4,6 +4,7 @@ import com.spring.findmypet.domain.model.PetType
 import com.spring.findmypet.domain.validation.ValidBreed
 import com.spring.findmypet.domain.validation.PetWithBreed
 import jakarta.validation.constraints.*
+import java.time.LocalDateTime
 
 @ValidBreed
 data class ReportLostPetRequest(
@@ -65,7 +66,9 @@ data class LostPetResponse(
     val latitude: Double,
     val longitude: Double,
     val photos: List<String>,
-    val userId: Long
+    val userId: Long,
+    val found: Boolean,
+    val foundAt: LocalDateTime?
 )
 
 @ValidBreed
@@ -130,4 +133,9 @@ data class LostPetEditFormResponse(
     val latitude: Double,
     val longitude: Double,
     val photos: List<String>
+)
+
+data class MarkAsFoundResponse(
+    val success: Boolean,
+    val foundAt: LocalDateTime
 ) 
