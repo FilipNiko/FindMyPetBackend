@@ -1,7 +1,7 @@
 package com.spring.findmypet.domain.dto
 
 data class MessagePageResponse(
-    val conversationId: Long,
+    val conversationId: Long?,
     val otherUserName: String,
     val otherUserPhone: String?,
     val otherUserAvatarId: String,

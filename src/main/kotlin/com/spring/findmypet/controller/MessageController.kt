@@ -124,10 +124,10 @@ class MessageController(
             val messagesPage = messageService.findMessagesBetweenUsersPaginated(userId, otherUserId, page, size)
             ResponseEntity.ok(ApiResponse(success = true, result = messagesPage))
         } catch (e: ResourceNotFoundException) {
-            logger.warn("Konverzacija između korisnika $userId i $otherUserId nije pronađena", e)
+            logger.warn("Korisnik sa ID-om $otherUserId nije pronađen", e)
             val apiError = ApiError(
-                errorCode = "RESOURCE_NOT_FOUND",
-                errorDescription = e.message ?: "Konverzacija nije pronađena"
+                errorCode = "USER_NOT_FOUND",
+                errorDescription = e.message ?: "Korisnik nije pronađen"
             )
             ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse(success = false, errors = listOf(apiError)))

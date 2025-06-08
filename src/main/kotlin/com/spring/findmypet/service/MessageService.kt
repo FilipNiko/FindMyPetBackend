@@ -208,10 +208,24 @@ class MessageService(
         val otherUser = userRepository.findById(otherUserId)
             .orElseThrow { ResourceNotFoundException("Korisnik sa ID-om $otherUserId nije pronađen") }
 
-        val conversation = conversationRepository.findConversationBetweenUsers(user, otherUser)
-            .orElseThrow { ResourceNotFoundException("Konverzacija između korisnika $userId i $otherUserId nije pronađena") }
+        val conversationOptional = conversationRepository.findConversationBetweenUsers(user, otherUser)
         
-        return findMessagesInConversationPaginated(userId, conversation.id!!, page, size)
+        if (conversationOptional.isPresent) {
+            return findMessagesInConversationPaginated(userId, conversationOptional.get().id!!, page, size)
+        } else {
+            return MessagePageResponse(
+                conversationId = null,
+                otherUserName = getUserFullName(otherUser),
+                otherUserPhone = otherUser.getPhoneNumber(),
+                otherUserAvatarId = otherUser.getAvatarId(),
+                content = emptyList(),
+                page = page,
+                size = size,
+                totalElements = 0,
+                totalPages = 0,
+                last = true
+            )
+        }
     }
 
     private fun getUserFullName(user: User): String {
