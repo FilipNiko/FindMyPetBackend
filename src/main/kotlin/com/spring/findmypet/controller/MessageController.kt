@@ -8,6 +8,7 @@ import com.spring.findmypet.service.FileStorageService
 import com.spring.findmypet.service.FirebaseMessagingService
 import com.spring.findmypet.service.MessageService
 import com.spring.findmypet.service.WebSocketService
+import kotlinx.coroutines.*
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -33,6 +34,8 @@ class MessageController(
     private val fileStorageService: FileStorageService
 ) {
     private val logger = LoggerFactory.getLogger(MessageController::class.java)
+
+    private val controllerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     @GetMapping("/conversations")
     fun getConversations(
@@ -65,7 +68,7 @@ class MessageController(
             val conversation = messageService.findConversationBetweenUsers(userId, messageRequest.receiverId)
 
             sendWebSocketMessage(userId, messageRequest.receiverId, messageDto)
-            sendPushNotification(userId, user, messageRequest.receiverId, messageDto, conversation.id!!)
+            sendPushNotificationAsync(userId, user, messageRequest.receiverId, messageDto, conversation.id!!)
             
         } catch (e: Exception) {
             logWebSocketError("Greška pri slanju poruke", e)
@@ -220,50 +223,55 @@ class MessageController(
         logger.error("WebSocket: Detalji greške: ${e.message}")
     }
 
-    private fun sendPushNotification(
+    private fun sendPushNotificationAsync(
         senderId: Long,
         sender: User,
         receiverId: Long,
         messageDto: MessageDto,
         conversationId: Long
     ) {
-        try {
-            val receiver = userRepository.findById(receiverId).orElseThrow {
-                ResourceNotFoundException("Korisnik sa ID-om $receiverId nije pronađen")
-            }
-            
-            val receiverToken = receiver.getFirebaseToken()
-            
-            if (!receiverToken.isNullOrBlank()) {
-                val title = sender.getFullName()
-                val body = when (messageDto.messageType) {
-                    MessageType.TEXT -> messageDto.content
-                    MessageType.IMAGE -> "Poslao/la vam je sliku"
-                    MessageType.LOCATION -> "Podelio/la je lokaciju sa vama"
-                    else -> "Nova poruka"
+        controllerScope.launch {
+            try {
+                logger.debug("ASYNC-MSG: Započinje slanje Firebase notifikacije korisniku $receiverId")
+
+                val receiver = userRepository.findById(receiverId).orElseThrow {
+                    ResourceNotFoundException("Korisnik sa ID-om $receiverId nije pronađen")
                 }
-                
-                val notificationData = mapOf(
-                    "conversationId" to conversationId.toString(),
-                    "senderId" to senderId.toString(),
-                    "senderName" to sender.getFullName(),
-                    "messageType" to messageDto.messageType.name
-                )
-                
-                val firebaseMessage = FirebaseMessage(
-                    title = title,
-                    body = body.take(100),
-                    type = NotificationType.NEW_MESSAGE,
-                    data = notificationData
-                )
-                
-                firebaseMessagingService.sendNotification(receiverToken, firebaseMessage)
-                logger.info("Firebase notifikacija poslata korisniku: ${receiver.getUsername()}")
-            } else {
-                logger.info("Korisnik nema Firebase token, push notifikacija nije poslata: ${receiver.getUsername()}")
+
+                val receiverToken = receiver.getFirebaseToken()
+
+                if (!receiverToken.isNullOrBlank()) {
+                    val title = sender.getFullName()
+                    val body = when (messageDto.messageType) {
+                        MessageType.TEXT -> messageDto.content
+                        MessageType.IMAGE -> "Poslao/la vam je sliku"
+                        MessageType.LOCATION -> "Podelio/la je lokaciju sa vama"
+                        else -> "Nova poruka"
+                    }
+
+                    val notificationData = mapOf(
+                        "conversationId" to conversationId.toString(),
+                        "senderId" to senderId.toString(),
+                        "senderName" to sender.getFullName(),
+                        "messageType" to messageDto.messageType.name
+                    )
+
+                    val firebaseMessage = FirebaseMessage(
+                        title = title,
+                        body = body.take(100),
+                        type = NotificationType.NEW_MESSAGE,
+                        data = notificationData
+                    )
+
+                    firebaseMessagingService.sendNotification(receiverToken, firebaseMessage)
+
+                    logger.info("ASYNC-MSG: Firebase notifikacija uspešno poslata korisniku: ${receiver.getUsername()}")
+                } else {
+                    logger.debug("ASYNC-MSG: Korisnik ${receiver.getUsername()} nema Firebase token")
+                }
+            } catch (e: Exception) {
+                logger.warn("ASYNC-MSG: Greška pri slanju Firebase notifikacije korisniku $receiverId: ${e.message}")
             }
-        } catch (e: Exception) {
-            logger.error("Greška pri slanju Firebase notifikacije", e)
         }
     }
 } 

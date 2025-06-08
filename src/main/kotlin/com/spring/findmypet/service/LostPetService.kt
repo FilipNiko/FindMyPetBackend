@@ -8,6 +8,7 @@ import com.spring.findmypet.domain.model.User
 import com.spring.findmypet.exception.NotFoundException
 import com.spring.findmypet.repository.LostPetRepository
 import com.spring.findmypet.util.StringsUtil
+import kotlinx.coroutines.*
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.PageRequest
 import org.springframework.data.domain.Pageable
@@ -27,12 +28,7 @@ class LostPetService(
 ) {
     private val logger = LoggerFactory.getLogger(LostPetService::class.java)
 
-    companion object {
-        // Približna vrednost za 1 stepen geografske širine u kilometrima
-        private const val KM_PER_DEGREE_LAT = 111.0
-        // Faktor sigurnosti za geografski okvir (povećava okvir)
-        private const val GEO_SAFETY_FACTOR = 1.2
-    }
+    private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     @Transactional
     fun reportLostPet(request: ReportLostPetRequest, user: User): LostPetResponse {
@@ -66,7 +62,7 @@ class LostPetService(
             val savedPet = lostPetRepository.save(lostPet)
             logger.info("Uspešno sačuvana prijava izgubljenog ljubimca sa ID: ${savedPet.id}")
 
-            sendPushNotificationsToNearbyUsers(savedPet)
+            sendPushNotificationsAsync(savedPet)
 
             return LostPetResponse(
                 id = savedPet.id,
@@ -91,40 +87,66 @@ class LostPetService(
         }
     }
 
-    private fun sendPushNotificationsToNearbyUsers(lostPet: LostPet) {
-        try {
-            logger.info("Tražim korisnike u blizini za slanje push notifikacija o izgubljenom ljubimcu ID: ${lostPet.id}")
-            
-            val nearbyUsers = userService.findUsersInRadius(
-                latitude = lostPet.latitude,
-                longitude = lostPet.longitude,
-                lostPetId = lostPet.id
-            )
-            
-            logger.info("Pronađeno ${nearbyUsers.size} korisnika za slanje push notifikacija")
-            
-            nearbyUsers.forEach { user ->
-                val firebaseToken = user.getFirebaseToken()
-                if (firebaseToken != null) {
-                    val message = FirebaseMessage(
-                        title = "Neko je izgubio kućnog ljubimca u vašoj blizini",
-                        body = lostPet.title,
-                        type = NotificationType.LOST_PET_NEARBY,
-                        data = mapOf(
-                            "lostPetId" to lostPet.id.toString(),
-                            "latitude" to lostPet.latitude.toString(),
-                            "longitude" to lostPet.longitude.toString()
-                        )
-                    )
-                    
-                    firebaseMessagingService.sendNotification(firebaseToken, message)
-                    logger.debug("Poslata push notifikacija korisniku: ${user.getUsername()}")
+    private fun sendPushNotificationsAsync(lostPet: LostPet) {
+        serviceScope.launch {
+            try {
+                logger.info("ASYNC: Započinje slanje push notifikacija za izgubljenog ljubimca ID: ${lostPet.id}")
+                
+                val nearbyUsers = userService.findUsersInRadius(
+                    latitude = lostPet.latitude,
+                    longitude = lostPet.longitude,
+                    lostPetId = lostPet.id
+                )
+                
+                logger.info("ASYNC: Pronađeno ${nearbyUsers.size} korisnika za slanje push notifikacija")
+                
+                if (nearbyUsers.isEmpty()) {
+                    logger.info("ASYNC: Nema korisnika u blizini, završavam")
+                    return@launch
                 }
+
+                val notificationJobs = nearbyUsers.mapNotNull { user ->
+                    val firebaseToken = user.getFirebaseToken()
+                    if (firebaseToken != null) {
+                        async(Dispatchers.IO) {
+                            sendNotificationToUser(user, firebaseToken, lostPet)
+                        }
+                    } else {
+                        logger.debug("ASYNC: Korisnik ${user.getUsername()} nema Firebase token")
+                        null
+                    }
+                }
+
+                val results = notificationJobs.awaitAll()
+                val successCount = results.count { it }
+                
+                logger.info("ASYNC: Uspešno poslato $successCount/${nearbyUsers.size} push notifikacija")
+                
+            } catch (e: Exception) {
+                logger.error("ASYNC: Greška prilikom slanja push notifikacija", e)
             }
-            
-            logger.info("Uspešno poslate push notifikacije korisnicima u blizini")
+        }
+    }
+
+    private suspend fun sendNotificationToUser(user: User, firebaseToken: String, lostPet: LostPet): Boolean {
+        return try {
+            val message = FirebaseMessage(
+                title = "Neko je izgubio kućnog ljubimca u vašoj blizini",
+                body = lostPet.title,
+                type = NotificationType.LOST_PET_NEARBY,
+                data = mapOf(
+                    "lostPetId" to lostPet.id.toString(),
+                    "latitude" to lostPet.latitude.toString(),
+                    "longitude" to lostPet.longitude.toString()
+                )
+            )
+
+            firebaseMessagingService.sendNotification(firebaseToken, message)
+            logger.debug("ASYNC: Uspešno poslata notifikacija korisniku: ${user.getUsername()}")
+            true
         } catch (e: Exception) {
-            logger.error("Greška prilikom slanja push notifikacija", e)
+            logger.warn("ASYNC: Greška pri slanju notifikacije korisniku ${user.getUsername()}: ${e.message}")
+            false
         }
     }
 
