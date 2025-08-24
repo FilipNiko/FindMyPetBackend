@@ -2,9 +2,6 @@ package com.spring.findmypet.exception.lostpet
 
 import com.spring.findmypet.exception.ErrorCode
 
-/**
- * Kodovi grešaka za nestale ljubimce
- */
 enum class LostPetErrorCodes(
     override val code: String,
     override val message: String

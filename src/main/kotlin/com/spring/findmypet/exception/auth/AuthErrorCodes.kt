@@ -2,9 +2,6 @@ package com.spring.findmypet.exception.auth
 
 import com.spring.findmypet.exception.ErrorCode
 
-/**
- * Kodovi grešaka vezani za autentifikaciju
- */
 enum class AuthErrorCodes(
     override val code: String,
     override val message: String

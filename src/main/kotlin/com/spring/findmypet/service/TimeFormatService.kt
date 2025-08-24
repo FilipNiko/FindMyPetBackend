@@ -6,14 +6,7 @@ import java.time.LocalDateTime
 
 @Service
 class TimeFormatService {
-    
-    /**
-     * Formatira vreme koje je prošlo od zadatog trenutka do sada
-     * u čitljiv format ("pre nekoliko minuta", "pre X sati", "pre X dana")
-     * 
-     * @param dateTime vreme koje se formatira
-     * @return formatiran string
-     */
+
     fun getTimeAgo(dateTime: LocalDateTime): String {
         val now = LocalDateTime.now()
         val duration = Duration.between(dateTime, now)

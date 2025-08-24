@@ -11,9 +11,7 @@ import kotlin.math.*
 class GeoService(private val lostPetRepository: LostPetRepository) {
     
     companion object {
-        // Približna vrednost za 1 stepen geografske širine u kilometrima
         const val KM_PER_DEGREE_LAT = 111.0
-        // Faktor sigurnosti za geografski okvir (povećava okvir)
         const val GEO_SAFETY_FACTOR = 1.2
     }
     
@@ -26,7 +24,7 @@ class GeoService(private val lostPetRepository: LostPetRepository) {
      * @return udaljenost u metrima
      */
     fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
-        val earthRadius = 6371000.0 // Zemljin poluprečnik u metrima
+        val earthRadius = 6371000.0
         
         val latRad1 = Math.toRadians(lat1)
         val lonRad1 = Math.toRadians(lon1)
@@ -59,14 +57,10 @@ class GeoService(private val lostPetRepository: LostPetRepository) {
      * Okvir je pravougaonik koji obuhvata krug radijusa oko tačke.
      */
     fun calculateGeoBoundingBox(latitude: Double, longitude: Double, radiusKm: Double): GeoBoundingBox {
-        // Radijus sa faktorom sigurnosti
         val safeRadius = radiusKm * GEO_SAFETY_FACTOR
         
-        // Izračunaj promenu geografske širine
         val deltaLat = safeRadius / KM_PER_DEGREE_LAT
-        
-        // Izračunaj promenu geografske dužine (zavisi od geografske širine)
-        // Na ekvatoru 1 stepen dužine ≈ 111 km, a smanjuje se sa povećanjem geografske širine
+
         val kmPerDegreeLng = KM_PER_DEGREE_LAT * cos(Math.toRadians(latitude))
         val deltaLng = if (kmPerDegreeLng > 0) safeRadius / kmPerDegreeLng else safeRadius
         

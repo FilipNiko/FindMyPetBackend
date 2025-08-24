@@ -1,17 +1,10 @@
 package com.spring.findmypet.exception
 
-/**
- * Osnovni interfejs za sve kodove grešaka
- * Svaka specifična kategorija grešaka implementira ovaj interfejs
- */
 interface ErrorCode {
     val code: String
     val message: String
 }
 
-/**
- * Osnovni sistemski kodovi grešaka
- */
 enum class SystemErrorCodes(
     override val code: String,
     override val message: String
@@ -34,9 +27,6 @@ enum class SystemErrorCodes(
     )
 }
 
-/**
- * Kodovi grešaka za validaciju
- */
 enum class ValidationErrorCodes(
     override val code: String,
     override val message: String

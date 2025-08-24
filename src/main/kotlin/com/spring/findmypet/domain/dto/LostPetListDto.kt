@@ -65,8 +65,8 @@ data class LostPetListItem(
 )
 
 enum class SortType {
-    DISTANCE,   // najbliže prvo
-    LATEST      // najnovije prvo
+    DISTANCE,
+    LATEST
 }
 
 enum class PetFilter {

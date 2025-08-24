@@ -19,22 +19,17 @@ class ErrorMessagesConfig {
 
         var totalErrorCount = 0
         
-        // Registrujemo sistemske kodove grešaka
         val systemErrorCount = SystemErrorCodes.entries.size
         logger.info("Sistemski kodovi grešaka: {}", systemErrorCount)
         totalErrorCount += systemErrorCount
         
-        // Registrujemo validacione kodove grešaka
         val validationErrorCount = ValidationErrorCodes.entries.size
         logger.info("Validacioni kodovi grešaka: {}", validationErrorCount)
         totalErrorCount += validationErrorCount
         
-        // Registrujemo autentifikacione kodove grešaka
         val authErrorCount = AuthErrorCodes.entries.size
         logger.info("Autentifikacioni kodovi grešaka: {}", authErrorCount)
         totalErrorCount += authErrorCount
-        
-        // Ovde se mogu dodati novi kodovi grešaka po potrebi...
         
         logger.info("Registrovano ukupno {} kodova grešaka", totalErrorCount)
         logger.info("Sistem za obradu grešaka je uspešno inicijalizovan")

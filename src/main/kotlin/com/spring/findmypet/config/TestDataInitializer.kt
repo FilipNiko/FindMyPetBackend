@@ -2,6 +2,8 @@ package com.spring.findmypet.config
 
 import com.spring.findmypet.domain.model.LostPet
 import com.spring.findmypet.domain.model.PetType
+import com.spring.findmypet.domain.model.User
+import com.spring.findmypet.domain.model.Role
 import com.spring.findmypet.repository.LostPetRepository
 import com.spring.findmypet.repository.UserRepository
 import org.slf4j.LoggerFactory
@@ -9,6 +11,7 @@ import org.springframework.boot.CommandLineRunner
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Profile
+import org.springframework.security.crypto.password.PasswordEncoder
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 import kotlin.random.Random
@@ -22,7 +25,8 @@ class TestDataInitializer {
     @Bean
     fun initTestData(
         userRepository: UserRepository,
-        lostPetRepository: LostPetRepository
+        lostPetRepository: LostPetRepository,
+        passwordEncoder: PasswordEncoder
     ): CommandLineRunner {
         return CommandLineRunner { args ->
             if (lostPetRepository.count() > 0) {
@@ -30,15 +34,51 @@ class TestDataInitializer {
                 return@CommandLineRunner
             }
             
-            val users = userRepository.findAll()
-            if (users.isEmpty()) {
-                logger.warn("Nema korisnika u bazi, ne mogu da kreiram testne podatke za nestale ljubimce")
-                return@CommandLineRunner
+
+            val users = if (userRepository.count() == 0L) {
+                logger.info("Početak kreiranja test korisnika...")
+                val hashedPassword = passwordEncoder.encode("Lozinka123#")
+                val validAvatarIds = listOf("DOG", "CAT", "RABBIT", "BIRD", "HAMSTER", "TURTLE", "GUINEA_PIG", "LIZARD", "INITIALS")
+                
+                val testUsers = mutableListOf<User>()
+                
+                val userNames = listOf(
+                    "Marko Petrović" to "marko.petrovic@test.com",
+                    "Ana Nikolić" to "ana.nikolic@test.com", 
+                    "Stefan Jovanović" to "stefan.jovanovic@test.com",
+                    "Milica Stojanović" to "milica.stojanovic@test.com",
+                    "Nikola Đorđević" to "nikola.djordjevic@test.com",
+                    "Jovana Milosavljević" to "jovana.milosavljevic@test.com",
+                    "Miloš Radović" to "milos.radovic@test.com",
+                    "Tijana Stanković" to "tijana.stankovic@test.com",
+                    "Aleksandar Popović" to "aleksandar.popovic@test.com",
+                    "Dragana Ilić" to "dragana.ilic@test.com",
+                    "Vladimir Marković" to "vladimir.markovic@test.com",
+                    "Jelena Živković" to "jelena.zivkovic@test.com"
+                )
+                
+                userNames.forEachIndexed { index, (name, email) ->
+                    val user = User(
+                        fullName = name,
+                        email = email,
+                        phoneNumber = "+38160${1234567 + index}",
+                        password = hashedPassword,
+                        role = Role.USER
+                    )
+                    user.setAvatarId(validAvatarIds[index % validAvatarIds.size])
+                    testUsers.add(user)
+                }
+                
+                val savedUsers = userRepository.saveAll(testUsers)
+                logger.info("Kreirano ${savedUsers.size} test korisnika")
+                savedUsers.toList()
+            } else {
+                userRepository.findAll()
             }
             
             logger.info("Počinjem inicijalizaciju testnih podataka za nestale ljubimce...")
             
-            // Podaci za pse
+
             val dogNames = listOf(
                 "Max", "Bobi", "Laki", "Aron", "Šarko", "Reks", "Čarli", "Leo", "Džeki", "Badi",
                 "Lusi", "Bela", "Meda", "Tera", "As", "Bak", "Zoi", "Dona", "Fleki", "Lola",
@@ -55,7 +95,7 @@ class TestDataInitializer {
                 "Krem", "Žućkasta", "Sivo-bela", "Tri-color", "Tigrasta", "Tamno-braon"
             )
             
-            // Podaci za mačke
+
             val catNames = listOf(
                 "Mačak", "Mrvica", "Maza", "Meda", "Flekica", "Mica", "Čupko", "Cica", "Garfi", "Tom",
                 "Luna", "Leo", "Mali", "Peri", "Lola", "Mici", "Panda", "Maca", "Siki", "Pero",
@@ -72,7 +112,7 @@ class TestDataInitializer {
                 "Srebrna", "Krem", "Sivo-bela", "Plava", "Čokolada", "Lila", "Kaliko", "Tabi", "Crvena"
             )
             
-            // Podatci za ostale ljubimce
+
             val otherNames = listOf(
                 "Hopper", "Bubica", "Ptica", "Skočko", "Zvonko", "Soni", "Mali", "Toto", "Mika",
                 "Bambi", "Peri", "Cvrkuti", "Zeka", "Koko", "Jumbo", "Pipa", "Ušati", "Žućko", "Trčko"
@@ -86,7 +126,7 @@ class TestDataInitializer {
                 "Narandžasta", "Crna", "Zlatna", "Ljubičasta", "Crveno-žuta", "Zeleno-plava"
             )
 
-            // Proširena lista slika
+
             val dogPhotos = listOf(
                 "dog_1.jpg", "dog_2.jpg", "dog_3.jpg", 
                 "dog_4.jpg", "dog_5.jpg", "dog_6.jpg", "dog_7.jpg", "dog_8.jpg", 
@@ -109,10 +149,9 @@ class TestDataInitializer {
                 "other_13.jpg", "other_14.jpg", "other_15.jpg"
             )
             
-            // Generisaćemo za neke ljubimce više slika
-            val multiPhotoChance = 0.35 // Povećano na 35% šansa da će ljubimac imati više slika
+            val multiPhotoChance = 0.35
             
-            // Opšti opisi - proširena lista
+
             val generalDescriptions = listOf(
                 "Izgubljen u parku tokom šetnje. Veoma je prijateljski nastrojen prema ljudima. Ima ogrlicu sa imenom.",
                 "Pobegao iz dvorišta. Veoma se plaši glasnih zvukova. Reaguje na svoje ime.",
@@ -131,7 +170,7 @@ class TestDataInitializer {
                 "Nestao u blizini škole. Ima jedinstvenu šaru na repu. Voli da se igra sa loptom."
             )
             
-            // Proširena lista detaljnih opisa
+
             val detailedDescriptionsDog = listOf(
                 "Naš voljeni pas je nestao tokom jučerašnje šetnje u parku. Vrlo je prijateljski nastrojen prema ljudima i drugim psima. Ima prepoznatljivu ogrlicu sa ID pločicom i čipovan je. Molimo sve koji ga vide da nas odmah kontaktiraju.",
                 "Izgubio se našoj kućni ljubimac. Jako se plaši glasnih zvukova, posebno grmljavine. Obično se krije u mirnim, tamnim mestima kada je uplašen. Ima malo sivo krzno sa belim šarama i nosi plavu ogrlicu.",
@@ -177,7 +216,7 @@ class TestDataInitializer {
                 PetType.OTHER to detailedDescriptionsOther
             )
             
-            // Lokacije u Beogradu (format: naziv, latitude, longitude)
+
             val locations = listOf(
                 Triple("Kalemegdan", 44.8233, 20.4489),
                 Triple("Tasmajdanski park", 44.8044, 20.4724),
@@ -209,10 +248,9 @@ class TestDataInitializer {
             val lostPets = mutableListOf<LostPet>()
             val random = Random(System.currentTimeMillis())
             
-            // Kreiranje pasa (40 pasa)
             repeat(40) { index ->
                 val user = users[random.nextInt(users.size)]
-                val timeOffset = random.nextLong(0, 15) // do 15 dana unazad
+                val timeOffset = random.nextLong(0, 15)
                 val hours = random.nextInt(0, 24)
                 val minutes = random.nextInt(0, 60)
                 
@@ -224,34 +262,23 @@ class TestDataInitializer {
                 val location = locations[random.nextInt(locations.size)]
                 val name = dogNames[random.nextInt(dogNames.size)]
                 
-                // Osiguravamo raznovrsnost rasa i boja za bolje testiranje filtera
                 val breed = if (index % 4 == 0 && index < dogBreeds.size) {
-                    // Isti pas može biti više puta, ali na različitim lokacijama
                     dogBreeds[index % dogBreeds.size] 
                 } else {
                     dogBreeds[random.nextInt(dogBreeds.size)]
                 }
                 
                 val color = if (index % 5 == 0 && index < dogColors.size) { 
-                    // Osiguravamo da imamo dovoljno pasa iste boje za testiranje filtera
                     dogColors[index % dogColors.size]
                 } else {
                     dogColors[random.nextInt(dogColors.size)]
                 }
                 
                 val description = detailedDescriptions[PetType.DOG]!![random.nextInt(detailedDescriptions[PetType.DOG]!!.size)]
-                val gender = if (index % 2 == 0) "MALE" else "FEMALE" // Balansiramo polove
-                val hasChip = index % 3 == 0 // Osiguravamo da neki imaju čip, neki ne
+                val gender = if (index % 2 == 0) "MALE" else "FEMALE"
+                val hasChip = index % 3 == 0
                 
-                // Određivanje broja slika - neki ljubimci imaju više slika
-                val photos = if (random.nextDouble() < multiPhotoChance) {
-                    // 35% šansa za više slika (2-6)
-                    val photoCount = random.nextInt(2, minOf(6, dogPhotos.size) + 1)
-                    dogPhotos.shuffled().take(photoCount)
-                } else {
-                    // 65% šansa za jednu sliku
-                    listOf(dogPhotos[random.nextInt(dogPhotos.size)])
-                }
+                val photos = listOf(dogPhotos[index % dogPhotos.size])
                 
                 val lostPet = LostPet(
                     user = user,
@@ -263,7 +290,7 @@ class TestDataInitializer {
                     gender = gender,
                     hasChip = hasChip,
                     address = location.first,
-                    latitude = location.second + (random.nextDouble() - 0.5) * 0.005, // mala nasumična varijacija lokacije
+                    latitude = location.second + (random.nextDouble() - 0.5) * 0.005,
                     longitude = location.third + (random.nextDouble() - 0.5) * 0.005,
                     photos = photos,
                     createdAt = createdAt
@@ -274,7 +301,7 @@ class TestDataInitializer {
             
             repeat(30) { index ->
                 val user = users[random.nextInt(users.size)]
-                val timeOffset = random.nextLong(0, 15) // do 15 dana unazad
+                val timeOffset = random.nextLong(0, 15)
                 val hours = random.nextInt(0, 24)
                 val minutes = random.nextInt(0, 60)
                 
@@ -286,7 +313,6 @@ class TestDataInitializer {
                 val location = locations[random.nextInt(locations.size)]
                 val name = catNames[random.nextInt(catNames.size)]
                 
-                // Osiguravamo raznovrsnost rasa i boja za bolje testiranje filtera
                 val breed = if (index % 4 == 0 && index < catBreeds.size) {
                     catBreeds[index % catBreeds.size]
                 } else {
@@ -300,17 +326,13 @@ class TestDataInitializer {
                 }
                 
                 val description = detailedDescriptions[PetType.CAT]!![random.nextInt(detailedDescriptions[PetType.CAT]!!.size)]
-                val gender = if (index % 2 == 0) "MALE" else "FEMALE" // Balansiramo polove
-                val hasChip = index % 3 == 0 // Osiguravamo da neki imaju čip, neki ne
+                val gender = if (index % 2 == 0) "MALE" else "FEMALE"
+                val hasChip = index % 3 == 0
                 
-                // Određivanje broja slika
-                val photos = if (random.nextDouble() < multiPhotoChance) {
-                    // 35% šansa za više slika (2-5)
-                    val photoCount = random.nextInt(2, minOf(5, catPhotos.size) + 1)
-                    catPhotos.shuffled().take(photoCount)
-                } else {
-                    // 65% šansa za jednu sliku
-                    listOf(catPhotos[random.nextInt(catPhotos.size)])
+                val photoCount = random.nextInt(2, 4)
+                val startIndex = (index * 3) % catPhotos.size
+                val photos = (0 until photoCount).map { i -> 
+                    catPhotos[(startIndex + i) % catPhotos.size] 
                 }
                 
                 val lostPet = LostPet(
@@ -332,10 +354,9 @@ class TestDataInitializer {
                 lostPets.add(lostPet)
             }
             
-            // Kreiranje ostalih ljubimaca (15 ostalih)
             repeat(15) { index ->
                 val user = users[random.nextInt(users.size)]
-                val timeOffset = random.nextLong(0, 15) // do 15 dana unazad
+                val timeOffset = random.nextLong(0, 15)
                 val hours = random.nextInt(0, 24)
                 val minutes = random.nextInt(0, 60)
                 
@@ -347,7 +368,6 @@ class TestDataInitializer {
                 val location = locations[random.nextInt(locations.size)]
                 val name = otherNames[random.nextInt(otherNames.size)]
                 
-                // Osiguravamo raznovrsnost rasa i boja za bolje testiranje filtera
                 val breed = if (index % 3 == 0 && index < otherTypes.size) {
                     otherTypes[index % otherTypes.size]
                 } else {
@@ -361,18 +381,14 @@ class TestDataInitializer {
                 }
                 
                 val description = detailedDescriptions[PetType.OTHER]!![random.nextInt(detailedDescriptions[PetType.OTHER]!!.size)]
-                val gender = if (index % 2 == 0) "MALE" else "FEMALE" // Balansiramo polove
-                val hasChip = index % 5 == 0 // Mali procenat ostalih ljubimaca ima čip
+                val gender = if (index % 2 == 0) "MALE" else "FEMALE"
+                val hasChip = index % 5 == 0
                 
-                // Određivanje broja slika
-                val photos = if (random.nextDouble() < multiPhotoChance) {
-                    // 35% šansa za više slika (2-4)
-                    val photoCount = random.nextInt(2, minOf(4, otherPhotos.size) + 1)
-                    otherPhotos.shuffled().take(photoCount)
-                } else {
-                    // 65% šansa za jednu sliku
-                    listOf(otherPhotos[random.nextInt(otherPhotos.size)])
-                }
+                val photoIndex = (index / 2) * 2
+                val photos = listOf(
+                    otherPhotos[photoIndex % otherPhotos.size],
+                    otherPhotos[(photoIndex + 1) % otherPhotos.size]
+                )
                 
                 val lostPet = LostPet(
                     user = user,
