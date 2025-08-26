@@ -1,5 +1,5 @@
-# FindMyPet
+  # FindMyPetBackend
 
-Android aplikacija koja pomaže vlasnicima kućnih ljubimaca da pronađu svoje izgubljene ljubimce.
+  Spring Boot backend aplikacija za FindMyPet Android aplikaciju koja omogućava pronalaženje izgubljenih kućnih ljubimaca.
 
-Aplikacija zahteva pokretanje backend servera koji se može naći na: https://github.com/FilipNiko/FindMyPetBackend
+  Frontend Android aplikacija se može naći na: https://github.com/FilipNiko/FindMyPet
