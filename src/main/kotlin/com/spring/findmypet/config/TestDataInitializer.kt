@@ -14,14 +14,13 @@ import org.springframework.context.annotation.Profile
 import org.springframework.security.crypto.password.PasswordEncoder
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
-import kotlin.random.Random
 
 @Configuration
 @Profile("dev")
 class TestDataInitializer {
-    
+
     private val logger = LoggerFactory.getLogger(TestDataInitializer::class.java)
-    
+
     @Bean
     fun initTestData(
         userRepository: UserRepository,
@@ -33,384 +32,599 @@ class TestDataInitializer {
                 logger.info("Baza već sadrži podatke o nestalim ljubimcima, preskačem inicijalizaciju testnih podataka")
                 return@CommandLineRunner
             }
-            
 
             val users = if (userRepository.count() == 0L) {
                 logger.info("Početak kreiranja test korisnika...")
                 val hashedPassword = passwordEncoder.encode("Lozinka123#")
-                val validAvatarIds = listOf("DOG", "CAT", "RABBIT", "BIRD", "HAMSTER", "TURTLE", "GUINEA_PIG", "LIZARD", "INITIALS")
-                
+                val validAvatarIds = listOf("DOG", "CAT", "RABBIT", "BIRD", "HAMSTER", "TURTLE", "GUINEA_PIG", "LIZARD")
+
                 val testUsers = mutableListOf<User>()
-                
-                val userNames = listOf(
-                    "Marko Petrović" to "marko.petrovic@test.com",
-                    "Ana Nikolić" to "ana.nikolic@test.com", 
-                    "Stefan Jovanović" to "stefan.jovanovic@test.com",
-                    "Milica Stojanović" to "milica.stojanovic@test.com",
-                    "Nikola Đorđević" to "nikola.djordjevic@test.com",
-                    "Jovana Milosavljević" to "jovana.milosavljevic@test.com",
-                    "Miloš Radović" to "milos.radovic@test.com",
-                    "Tijana Stanković" to "tijana.stankovic@test.com",
-                    "Aleksandar Popović" to "aleksandar.popovic@test.com",
-                    "Dragana Ilić" to "dragana.ilic@test.com",
-                    "Vladimir Marković" to "vladimir.markovic@test.com",
-                    "Jelena Živković" to "jelena.zivkovic@test.com"
+
+                // Admin nalog
+                val admin = User(
+                    fullName = "Administrator",
+                    email = "admin@gmail.com",
+                    phoneNumber = "+381601234560",
+                    password = hashedPassword,
+                    role = Role.ADMIN
                 )
-                
-                userNames.forEachIndexed { index, (name, email) ->
+                admin.setAvatarId("DOG")
+                testUsers.add(admin)
+
+                // Regular korisnici
+                val regularUsers = listOf(
+                    Triple("Marko Petrović", "marko.petrovic@gmail.com", "+381601234561"),
+                    Triple("Ana Nikolić", "ana.nikolic@gmail.com", "+381601234562"),
+                    Triple("Stefan Jovanović", "stefan.jovanovic@gmail.com", "+381601234563"),
+                    Triple("Milica Stojanović", "milica.stojanovic@gmail.com", "+381601234564"),
+                    Triple("Nikola Đorđević", "nikola.djordjevic@gmail.com", "+381601234565"),
+                    Triple("Jovana Milosavljević", "jovana.milosavljevic@gmail.com", "+381601234566"),
+                    Triple("Miloš Radović", "milos.radovic@gmail.com", "+381601234567"),
+                    Triple("Tijana Stanković", "tijana.stankovic@gmail.com", "+381601234568"),
+                    Triple("Aleksandar Popović", "aleksandar.popovic@gmail.com", "+381601234569"),
+                    Triple("Dragana Ilić", "dragana.ilic@gmail.com", "+381601234570"),
+                    Triple("Vladimir Marković", "vladimir.markovic@gmail.com", "+381601234571"),
+                    Triple("Jelena Živković", "jelena.zivkovic@gmail.com", "+381601234572"),
+                    Triple("Petar Pavlović", "petar.pavlovic@gmail.com", "+381601234573"),
+                    Triple("Marija Janković", "marija.jankovic@gmail.com", "+381601234574"),
+                    Triple("Dušan Todorović", "dusan.todorovic@gmail.com", "+381601234575"),
+                    Triple("Ivana Kostić", "ivana.kostic@gmail.com", "+381601234576"),
+                    Triple("Nemanja Đorđević", "nemanja.djordjevic@gmail.com", "+381601234577"),
+                    Triple("Katarina Simić", "katarina.simic@gmail.com", "+381601234578"),
+                    Triple("Luka Vasić", "luka.vasic@gmail.com", "+381601234579"),
+                    Triple("Teodora Ilić", "teodora.ilic@gmail.com", "+381601234580")
+                )
+
+                regularUsers.forEachIndexed { index, (name, email, phone) ->
                     val user = User(
                         fullName = name,
                         email = email,
-                        phoneNumber = "+38160${1234567 + index}",
+                        phoneNumber = phone,
                         password = hashedPassword,
                         role = Role.USER
                     )
                     user.setAvatarId(validAvatarIds[index % validAvatarIds.size])
                     testUsers.add(user)
                 }
-                
+
                 val savedUsers = userRepository.saveAll(testUsers)
-                logger.info("Kreirano ${savedUsers.size} test korisnika")
+                logger.info("Kreirano ${savedUsers.size} test korisnika (1 admin + ${savedUsers.size - 1} regular)")
                 savedUsers.toList()
             } else {
                 userRepository.findAll()
             }
-            
+
             logger.info("Počinjem inicijalizaciju testnih podataka za nestale ljubimce...")
-            
 
-            val dogNames = listOf(
-                "Max", "Bobi", "Laki", "Aron", "Šarko", "Reks", "Čarli", "Leo", "Džeki", "Badi",
-                "Lusi", "Bela", "Meda", "Tera", "As", "Bak", "Zoi", "Dona", "Fleki", "Lola",
-                "Riko", "Tedi", "Maks", "Beni", "Doni", "Mila", "Niki", "Luna", "Sam", "Lajka"
-            )
-            val dogBreeds = listOf(
-                "Labrador", "Nemački ovčar", "Zlatni retriver", "Haski", "Buldog", "Bigl", "Pudla", "Mešanac",
-                "Rotvajler", "Jazavičar", "Mops", "Border koli", "Dalmatinac", "Bokser", "Koker španijel",
-                "Bernski planinski pas", "Šarplaninac", "Maltezer", "Čivava", "Šnaucer", "Šarpej",
-                "Doberman", "King Čarls španijel", "Pekinezer", "Pinč", "Seter", "Samojed", "Akita"
-            )
-            val dogColors = listOf(
-                "Zlatna", "Crna", "Braon", "Bela", "Crno-bela", "Siva", "Crvenkasta", "Smeđa", 
-                "Krem", "Žućkasta", "Sivo-bela", "Tri-color", "Tigrasta", "Tamno-braon"
-            )
-            
-
-            val catNames = listOf(
-                "Mačak", "Mrvica", "Maza", "Meda", "Flekica", "Mica", "Čupko", "Cica", "Garfi", "Tom",
-                "Luna", "Leo", "Mali", "Peri", "Lola", "Mici", "Panda", "Maca", "Siki", "Pero",
-                "Sima", "Mici", "Caki", "Sivko", "Belka", "Žucko", "Crni", "Miki", "Bela", "Šapica"
-            )
-            val catBreeds = listOf(
-                "Persijska", "Sijamska", "Maine Coon", "Bengalska", "Ruska plava", "Britanska kratkodlaka", 
-                "Evropska kratkodlaka", "Mešanac", "Abesinska", "Egipatska Mau", "Ragdoll", "Sfinks",
-                "Sibirska", "Norveška šumska", "Burma", "Devon Reks", "Škotska preklopna", "Himalajska", 
-                "Orijentalna", "Turska Van", "Savana", "Domaća"
-            )
-            val catColors = listOf(
-                "Siva", "Crna", "Bela", "Narandžasta", "Šarena", "Crno-bela", "Trobojna", "Tigrasta",
-                "Srebrna", "Krem", "Sivo-bela", "Plava", "Čokolada", "Lila", "Kaliko", "Tabi", "Crvena"
-            )
-            
-
-            val otherNames = listOf(
-                "Hopper", "Bubica", "Ptica", "Skočko", "Zvonko", "Soni", "Mali", "Toto", "Mika",
-                "Bambi", "Peri", "Cvrkuti", "Zeka", "Koko", "Jumbo", "Pipa", "Ušati", "Žućko", "Trčko"
-            )
-            val otherTypes = listOf(
-                "Zec", "Papagaj", "Hrčak", "Zamorče", "Kornjača", "Morsko prase", "Činčila",
-                "Iguana", "Boa", "Kanarinski papagaj", "Ara", "Veverica", "Afrički tvor", "Jež"
-            )
-            val otherColors = listOf(
-                "Bela", "Siva", "Zelena", "Šarena", "Braon", "Žuta", "Plava", "Crvena", 
-                "Narandžasta", "Crna", "Zlatna", "Ljubičasta", "Crveno-žuta", "Zeleno-plava"
-            )
-
-
-            val dogPhotos = listOf(
-                "dog_1.jpg", "dog_2.jpg", "dog_3.jpg", 
-                "dog_4.jpg", "dog_5.jpg", "dog_6.jpg", "dog_7.jpg", "dog_8.jpg", 
-                "dog_9.jpg", "dog_10.jpg", "dog_11.jpg", "dog_12.jpg",
-                "dog_13.jpg", "dog_14.jpg", "dog_15.jpg", "dog_16.jpg", "dog_17.jpg", 
-                "dog_18.jpg", "dog_19.jpg", "dog_20.jpg"
-            )
-            
-            val catPhotos = listOf(
-                "cat_1.jpg", "cat_2.jpg", "cat_3.jpg", 
-                "cat_4.jpg", "cat_5.jpg", "cat_6.jpg", "cat_7.jpg", "cat_8.jpg",
-                "cat_9.jpg", "cat_10.jpg", "cat_11.jpg", "cat_12.jpg", "cat_13.jpg", 
-                "cat_14.jpg", "cat_15.jpg", "cat_16.jpg", "cat_17.jpg", "cat_18.jpg"
-            )
-            
-            val otherPhotos = listOf(
-                "other_1.jpg", "other_2.jpg", "other_3.jpg", "other_4.jpg", 
-                "other_5.jpg", "other_6.jpg", "other_7.jpg", "other_8.jpg",
-                "other_9.jpg", "other_10.jpg", "other_11.jpg", "other_12.jpg", 
-                "other_13.jpg", "other_14.jpg", "other_15.jpg"
-            )
-            
-            val multiPhotoChance = 0.35
-            
-
-            val generalDescriptions = listOf(
-                "Izgubljen u parku tokom šetnje. Veoma je prijateljski nastrojen prema ljudima. Ima ogrlicu sa imenom.",
-                "Pobegao iz dvorišta. Veoma se plaši glasnih zvukova. Reaguje na svoje ime.",
-                "Nestao iz dvorišta. Ima specifičnu šaru na leđima. Veoma je umiljat.",
-                "Izgubljen tokom selidbe. Ima čip i ogrlicu sa kontakt informacijama.",
-                "Pobegao kroz otvorena vrata. Veoma je srećan kada vidi ljude, odmah prilazi.",
-                "Nestao iz blizine kuće. Ima malo oštećenje na desnom uhu. Jako je privržen.",
-                "Izgubljen prilikom posete veterinaru. Ima specifičan hod zbog stare povrede.",
-                "Pobegao zbog grmljavine. Vrlo je plašljiv, ali će prići ako mu se ponudi hrana.",
-                "Izgubljen u šetnji. Ima posebnu šaru na nosu u obliku srca. Veoma je umiljat prema deci.",
-                "Nestao u blizini marketa. Ima crnu fleku oko levog oka. Ima problema sa vidom.",
-                "Pobegao prilikom puštanja sa povodca. Energičan je i voli da trči. Reaguje na zvuk pištaljke.",
-                "Nestao tokom porodičnog piknika. Nosi zelenu ogrlicu sa imenom i brojem telefona.",
-                "Izgubljen tokom letovanja. Ima čip, ali ne nosi ogrlicu. Vrlo je privržen porodici.",
-                "Pobegao sa dvorišta zbog vatrometa. Veoma se plaši jakih zvukova. Neće prići strancima.",
-                "Nestao u blizini škole. Ima jedinstvenu šaru na repu. Voli da se igra sa loptom."
-            )
-            
-
-            val detailedDescriptionsDog = listOf(
-                "Naš voljeni pas je nestao tokom jučerašnje šetnje u parku. Vrlo je prijateljski nastrojen prema ljudima i drugim psima. Ima prepoznatljivu ogrlicu sa ID pločicom i čipovan je. Molimo sve koji ga vide da nas odmah kontaktiraju.",
-                "Izgubio se našoj kućni ljubimac. Jako se plaši glasnih zvukova, posebno grmljavine. Obično se krije u mirnim, tamnim mestima kada je uplašen. Ima malo sivo krzno sa belim šarama i nosi plavu ogrlicu.",
-                "Naš pas je pobegao kada je komšija ostavio kapiju otvorenu. On je star i ima problema sa sluhom, pa možda neće reagovati kada ga zovete. Ima braon boju sa belim flekama na grudima i nosi crvenu ogrlicu.",
-                "Izgubljen je naš mali pas tokom jučerašnje šetnje u okolini. Odaziva se na svoje ime i vrlo je umiljat. Ima specifičnu šaru na leđima nalik na srce. Ima ogrlicu sa kontaktom i čipovan je.",
-                "Naš voljeni pas je pobegao iz dvorišta. On je veoma prijateljski nastrojen, ali može biti plašljiv prema nepoznatim ljudima. Ima crnu dlaku sa belim flekama na grudima i nogama. Molimo za pomoć u pronalaženju!",
-                "Naš pas je nestao jutros iz dvorišta. Izuzetno je druželjubiv i voli da prilazi deci. Ima svetlo braon krzno sa belim tačkama. Nosi crvenu ogrlicu sa našim kontaktom. Veoma nam nedostaje, molimo za pomoć!",
-                "Izgubljen je naš porodični ljubimac tokom jučerašnje oluje. Veoma je uplašen i verovatno se krije negde. Ima svetlo sivu dlaku sa belim šapama. Star je 10 godina i potrebni su mu lekovi. Ako ga vidite, molimo vas da nas kontaktirate.",
-                "Naš maleni pas je pobegao dok smo bili u kupovini. Ima teget ogrlicu sa ID tagom. Veoma je umiljat i voli da se igra. Ima crnu kratku dlaku sa belim flekama po stomaku. Molimo za pomoć u pronalaženju.",
-                "Izgubljen je naš pas tokom šetnje na Adi. Veoma je druželjubiv i voli da trči za loptom. Ima braon boju sa crnim tačkama po leđima. Nosi plavu ogrlicu sa adresom. Molimo za pomoć!",
-                "Naš stariji pas je nestao dok smo bili u poseti prijateljima. Ima problema sa kretanjem i potrebni su mu lekovi. Ima sivu dlaku sa belim šapama. Veoma je miran i prići će ako ga pozovete po imenu. Molimo za pomoć!"
-            )
-            
-            val detailedDescriptionsCat = listOf(
-                "Naša mačka je nestala iz dvorišta. Ima prepoznatljivu crno-belu boju sa specifičnom šarom oko očiju koja podseća na masku. Vrlo je umiljata i odaziva se na svoje ime. Molim vas da nas kontaktirate ako je vidite.",
-                "Izgubljena je naša mačka. Ima jedinstvenu narandžastu boju krzna sa belim šapama. Jako je privržena i obično prilazi ljudima. Ona je čipovana i ima svetlo plavu ogrlicu sa ID pločicom.",
-                "Naša mačka je nestala pre dva dana. Ima posebnu trobojna šaru sa dominantnom sivom bojom. Vrlo je plašljiva prema nepoznatima i verovatno se krije negde. Molimo za pomoć u pronalaženju!",
-                "Izgubljena je naša starija mačka. Ima potpuno crno krzno sa malim belim flekom na grudima. Ona je veoma mirna i prijateljska. Brine nas jer uzima lekove i potrebna joj je posebna nega.",
-                "Naša mačka je pobegla kroz otvoreni prozor. Ona ima prelepo dugačko sivo krzno i zelene oči. Nije navikla da bude napolju i verovatno je uplašena. Molimo za pomoć u pronalaženju!",
-                "Izgubljena je naša mala mačka. Ima potpuno belu dlaku sa crnim repom. Vrlo je plašljiva prema strancima, ali je inače veoma umiljata. Nije navikla da bude napolju. Molimo za pomoć u pronalaženju!",
-                "Nestala je naša mačka tokom selidbe. Ima narandžasto-bele pruge i zelene oči. Veoma je znatiželjna i možda je ušla u nečije dvorište. Molimo vas da pogledate svoja dvorišta i garaže.",
-                "Izgubljena je naša mačka. Ona ima unikatnu sivu boju krzna sa tamnijim prugama. Veoma je stidljiva i verovatno se sakrila negde. Molimo da pogledate oko svojih kuća i podruma.",
-                "Naša mačka je nestala sinoć. Ima potpuno crno krzno bez ikakvih belih oznaka. Vrlo je umiljata i obično prilazi ljudima. Ako je vidite, molimo vas da nas kontaktirate.",
-                "Izgubljena je naša mačka. Ima tigrastopaternirano smeđe-crno krzno i velike žute oči. Odaziva se na svoje ime i veoma je privržena. Molimo za pomoć u pronalaženju."
-            )
-            
-            val detailedDescriptionsOther = listOf(
-                "Izgubljen je naš mali zec. Ima potpuno belo krzno sa crnim ušima. Vrlo je plašljiv i verovatno se sakrio negde. Molimo vas da nas kontaktirate ako ga vidite.",
-                "Naš papagaj je izleteo kroz otvoreni prozor. Ima prepoznatljivu zelenu boju sa žutom glavom. Zna da izgovori nekoliko reči. Molimo za pomoć u pronalaženju!",
-                "Izgubljen je naš mali hrčak tokom čišćenja kaveza. Ima zlatno-braon krzno. Vrlo je miran i prijateljski nastrojen. Molimo vas da nas kontaktirate ako ga vidite.",
-                "Naša kornjača je nestala iz bašte. Ima specifičnu šaru na oklopu. Nije brza, pa se verovatno nije daleko odmakla. Molimo za pomoć u pronalaženju!",
-                "Izgubljeno je naše malo zamorče. Ima crno-belo krzno sa specifičnom šarom koja podseća na naočare oko očiju. Vrlo je plašljivo, ali će prići ako mu ponudite hranu.",
-                "Izgubljen je naš kućni zec tokom čišćenja kaveza. Ima potpuno sivo krzno sa belim ušima. Veoma je pitom i naviknut je na ljude. Molimo za pomoć u pronalaženju!",
-                "Naš papagaj je odleteo kroz otvoreni prozor. Ima živopisno žuto-plavo perje. Odaziva se na svoje ime i zna nekoliko reči. Molimo vas da nas kontaktirate ako ga vidite!",
-                "Izgubljena je naša činčila. Ima meko srebrno krzno. Veoma je plašljiva i verovatno se sakrila negde u blizini. Molimo da proverite svoja dvorišta i garaže.",
-                "Nestala je naša iguana iz terarijuma. Ima svetlo zeleno telo sa tamnim prugama. Potrebni su joj posebni uslovi i hrana. Molimo za pomoć u pronalaženju!",
-                "Izgubljen je naš afrički tvor. Ima smeđe krzno sa crnim šarama. Veoma je radoznao i možda je ušao u nečije dvorište. Molimo za pomoć!"
-            )
-            
-            val detailedDescriptions = mapOf(
-                PetType.DOG to detailedDescriptionsDog,
-                PetType.CAT to detailedDescriptionsCat,
-                PetType.OTHER to detailedDescriptionsOther
-            )
-            
-
+            // Belgrade lokacije
             val locations = listOf(
-                Triple("Kalemegdan", 44.8233, 20.4489),
-                Triple("Tasmajdanski park", 44.8044, 20.4724),
-                Triple("Knez Mihailova", 44.8176, 20.4587),
-                Triple("Ada Ciganlija", 44.7866, 20.4016),
-                Triple("Zemun", 44.8500, 20.4026),
-                Triple("Košutnjak", 44.7633, 20.4284),
+                Triple("Kalemegdan, Beograd", 44.8233, 20.4489),
+                Triple("Tasmajdanski park, Beograd", 44.8044, 20.4724),
+                Triple("Knez Mihailova, Beograd", 44.8176, 20.4587),
+                Triple("Ada Ciganlija, Beograd", 44.7866, 20.4016),
+                Triple("Zemun, Beograd", 44.8500, 20.4026),
+                Triple("Košutnjak, Beograd", 44.7633, 20.4284),
                 Triple("Novi Beograd - Blok 45", 44.8017, 20.3805),
-                Triple("Voždovac", 44.7804, 20.4949),
-                Triple("Vračar", 44.8007, 20.4793),
-                Triple("Zvezdara", 44.8025, 20.5030),
-                Triple("Dedinje", 44.7853, 20.4558),
-                Triple("Dorćol", 44.8289, 20.4642),
-                Triple("Banovo brdo", 44.7704, 20.4139),
-                Triple("Rakovica", 44.7438, 20.4422),
-                Triple("Slavija", 44.8023, 20.4660),
-                Triple("Tašmajdan", 44.8070, 20.4736),
-                Triple("Pionirski park", 44.8107, 20.4646),
-                Triple("Park Manjež", 44.8068, 20.4595),
-                Triple("Park kod Vukovog spomenika", 44.8037, 20.4769),
-                Triple("Ušće", 44.8156, 20.4346),
-                Triple("Bulevar kralja Aleksandra", 44.8075, 20.4845),
-                Triple("Trg Republike", 44.8162, 20.4599),
-                Triple("Terazije", 44.8127, 20.4603),
-                Triple("Nušićeva ulica", 44.8142, 20.4588),
-                Triple("Skadarlija", 44.8195, 20.4656)
+                Triple("Voždovac, Beograd", 44.7804, 20.4949),
+                Triple("Vračar, Beograd", 44.8007, 20.4793),
+                Triple("Zvezdara, Beograd", 44.8025, 20.5030),
+                Triple("Dedinje, Beograd", 44.7853, 20.4558),
+                Triple("Dorćol, Beograd", 44.8289, 20.4642),
+                Triple("Banovo brdo, Beograd", 44.7704, 20.4139),
+                Triple("Rakovica, Beograd", 44.7438, 20.4422),
+                Triple("Slavija, Beograd", 44.8023, 20.4660),
+                Triple("Pionirski park, Beograd", 44.8107, 20.4646),
+                Triple("Ušće, Beograd", 44.8156, 20.4346),
+                Triple("Bulevar kralja Aleksandra, Beograd", 44.8075, 20.4845),
+                Triple("Trg Republike, Beograd", 44.8162, 20.4599),
+                Triple("Terazije, Beograd", 44.8127, 20.4603),
+                Triple("Skadarlija, Beograd", 44.8195, 20.4656),
+                Triple("Savski nasip, Beograd", 44.8034, 20.4156),
+                Triple("Cvijićeva ulica, Beograd", 44.8094, 20.4822),
+                Triple("Autokomanda, Beograd", 44.7889, 20.4739),
+                Triple("Senjak, Beograd", 44.7983, 20.4412),
+                Triple("Palilula, Beograd", 44.8233, 20.5109),
+                Triple("Crveni krst, Beograd", 44.7714, 20.4593),
+                Triple("Mirijevo, Beograd", 44.7805, 20.5388)
             )
-            
+
             val lostPets = mutableListOf<LostPet>()
-            val random = Random(System.currentTimeMillis())
-            
-            repeat(40) { index ->
-                val user = users[random.nextInt(users.size)]
-                val timeOffset = random.nextLong(0, 15)
-                val hours = random.nextInt(0, 24)
-                val minutes = random.nextInt(0, 60)
-                
-                val createdAt = LocalDateTime.now()
-                    .minus(timeOffset, ChronoUnit.DAYS)
-                    .minus(hours.toLong(), ChronoUnit.HOURS)
-                    .minus(minutes.toLong(), ChronoUnit.MINUTES)
-                
-                val location = locations[random.nextInt(locations.size)]
-                val name = dogNames[random.nextInt(dogNames.size)]
-                
-                val breed = if (index % 4 == 0 && index < dogBreeds.size) {
-                    dogBreeds[index % dogBreeds.size] 
-                } else {
-                    dogBreeds[random.nextInt(dogBreeds.size)]
-                }
-                
-                val color = if (index % 5 == 0 && index < dogColors.size) { 
-                    dogColors[index % dogColors.size]
-                } else {
-                    dogColors[random.nextInt(dogColors.size)]
-                }
-                
-                val description = detailedDescriptions[PetType.DOG]!![random.nextInt(detailedDescriptions[PetType.DOG]!!.size)]
-                val gender = if (index % 2 == 0) "MALE" else "FEMALE"
-                val hasChip = index % 3 == 0
-                
-                val photos = listOf(dogPhotos[index % dogPhotos.size])
-                
-                val lostPet = LostPet(
-                    user = user,
-                    petType = PetType.DOG,
-                    title = name,
-                    breed = breed,
-                    color = color,
-                    description = description,
-                    gender = gender,
-                    hasChip = hasChip,
-                    address = location.first,
-                    latitude = location.second + (random.nextDouble() - 0.5) * 0.005,
-                    longitude = location.third + (random.nextDouble() - 0.5) * 0.005,
-                    photos = photos,
-                    createdAt = createdAt
-                )
-                
-                lostPets.add(lostPet)
-            }
-            
-            repeat(30) { index ->
-                val user = users[random.nextInt(users.size)]
-                val timeOffset = random.nextLong(0, 15)
-                val hours = random.nextInt(0, 24)
-                val minutes = random.nextInt(0, 60)
-                
-                val createdAt = LocalDateTime.now()
-                    .minus(timeOffset, ChronoUnit.DAYS)
-                    .minus(hours.toLong(), ChronoUnit.HOURS)
-                    .minus(minutes.toLong(), ChronoUnit.MINUTES)
-                
-                val location = locations[random.nextInt(locations.size)]
-                val name = catNames[random.nextInt(catNames.size)]
-                
-                val breed = if (index % 4 == 0 && index < catBreeds.size) {
-                    catBreeds[index % catBreeds.size]
-                } else {
-                    catBreeds[random.nextInt(catBreeds.size)]
-                }
-                
-                val color = if (index % 5 == 0 && index < catColors.size) {
-                    catColors[index % catColors.size]
-                } else {
-                    catColors[random.nextInt(catColors.size)]
-                }
-                
-                val description = detailedDescriptions[PetType.CAT]!![random.nextInt(detailedDescriptions[PetType.CAT]!!.size)]
-                val gender = if (index % 2 == 0) "MALE" else "FEMALE"
-                val hasChip = index % 3 == 0
-                
-                val photoCount = random.nextInt(2, 4)
-                val startIndex = (index * 3) % catPhotos.size
-                val photos = (0 until photoCount).map { i -> 
-                    catPhotos[(startIndex + i) % catPhotos.size] 
-                }
-                
-                val lostPet = LostPet(
-                    user = user,
-                    petType = PetType.CAT,
-                    title = name,
-                    breed = breed,
-                    color = color,
-                    description = description,
-                    gender = gender,
-                    hasChip = hasChip,
-                    address = location.first,
-                    latitude = location.second + (random.nextDouble() - 0.5) * 0.005, 
-                    longitude = location.third + (random.nextDouble() - 0.5) * 0.005,
-                    photos = photos,
-                    createdAt = createdAt
-                )
-                
-                lostPets.add(lostPet)
-            }
-            
-            repeat(15) { index ->
-                val user = users[random.nextInt(users.size)]
-                val timeOffset = random.nextLong(0, 15)
-                val hours = random.nextInt(0, 24)
-                val minutes = random.nextInt(0, 60)
-                
-                val createdAt = LocalDateTime.now()
-                    .minus(timeOffset, ChronoUnit.DAYS)
-                    .minus(hours.toLong(), ChronoUnit.HOURS)
-                    .minus(minutes.toLong(), ChronoUnit.MINUTES)
-                
-                val location = locations[random.nextInt(locations.size)]
-                val name = otherNames[random.nextInt(otherNames.size)]
-                
-                val breed = if (index % 3 == 0 && index < otherTypes.size) {
-                    otherTypes[index % otherTypes.size]
-                } else {
-                    otherTypes[random.nextInt(otherTypes.size)]
-                }
-                
-                val color = if (index % 3 == 0 && index < otherColors.size) {
-                    otherColors[index % otherColors.size]
-                } else {
-                    otherColors[random.nextInt(otherColors.size)]
-                }
-                
-                val description = detailedDescriptions[PetType.OTHER]!![random.nextInt(detailedDescriptions[PetType.OTHER]!!.size)]
-                val gender = if (index % 2 == 0) "MALE" else "FEMALE"
-                val hasChip = index % 5 == 0
-                
-                val photoIndex = (index / 2) * 2
-                val photos = listOf(
-                    otherPhotos[photoIndex % otherPhotos.size],
-                    otherPhotos[(photoIndex + 1) % otherPhotos.size]
-                )
-                
-                val lostPet = LostPet(
-                    user = user,
-                    petType = PetType.OTHER,
-                    title = name,
-                    breed = breed,
-                    color = color,
-                    description = description,
-                    gender = gender,
-                    hasChip = hasChip,
-                    address = location.first,
-                    latitude = location.second + (random.nextDouble() - 0.5) * 0.005,
-                    longitude = location.third + (random.nextDouble() - 0.5) * 0.005,
-                    photos = photos,
-                    createdAt = createdAt
-                )
-                
-                lostPets.add(lostPet)
-            }
-            
+
+            // PASI - 12 prijava
+
+            // Dog 1: Akita - Riki (FOUND)
+            lostPets.add(LostPet(
+                user = users[1],
+                petType = PetType.DOG,
+                title = "Riki",
+                breed = "Akita",
+                color = "Svetlo braon sa belim",
+                description = "Naš pas Riki je nestao tokom šetnje u parku pre nekoliko dana. Ima vrlo prijateljsku narav i voli decu. Nosi plavu ogrlicu sa ID pločicom i čipovan je. Riki je veoma umiljat i odmah prilazi ljudima. Ima specifičnu svetlu braon boju sa belim grudima i šapama. Molimo sve koji ga vide da nas odmah kontaktiraju. Porodica nam veoma nedostaje!",
+                gender = "MALE",
+                hasChip = true,
+                address = locations[0].first,
+                latitude = locations[0].second + 0.002,
+                longitude = locations[0].third - 0.001,
+                photos = listOf("dog_akita_1.1", "dog_akita_1.2.jpg", "dog_akita_1.3.jpg"),
+                createdAt = LocalDateTime.now().minusDays(12),
+                found = true,
+                foundAt = LocalDateTime.now().minusDays(10)
+            ))
+
+            // Dog 2: Baset - Badi
+            lostPets.add(LostPet(
+                user = users[2],
+                petType = PetType.DOG,
+                title = "Badi",
+                breed = "Baset",
+                color = "Braon-beli",
+                description = "Naš voljeni baset Badi je izgubljen u blizini Tasmajdana. Ima duge uši i tužan pogled što je tipično za ovu rasu. Badi je vrlo miran i prijateljski nastrojen. Ima braon-belu boju sa karakterističnim dugim ušima. Nosi crvenu ogrlicu i čipovan je. Ako ga vidite, molimo vas da nas odmah kontaktirate. Veoma nam nedostaje!",
+                gender = "MALE",
+                hasChip = true,
+                address = locations[1].first,
+                latitude = locations[1].second - 0.001,
+                longitude = locations[1].third + 0.002,
+                photos = listOf("dog_baset_2.1.jpg", "dog_baset_2.2.jpg"),
+                createdAt = LocalDateTime.now().minusDays(8)
+            ))
+
+            // Dog 3: Baset - Lola
+            lostPets.add(LostPet(
+                user = users[3],
+                petType = PetType.DOG,
+                title = "Lola",
+                breed = "Baset",
+                color = "Braon-crno-beli (tricolor)",
+                description = "Naša Lola je nestala iz dvorišta juče ujutro. Ima prelepu tricolor šaru - braon, crnu i belu. Vrlo je umiljata i obično prilazi ljudima. Lola ima karakteristične duge uši i kraće noge tipične za basete. Potrebni su joj lekovi i veoma smo zabrinuti. Molimo vas, ako je vidite, pozovite nas odmah!",
+                gender = "FEMALE",
+                hasChip = false,
+                address = locations[2].first,
+                latitude = locations[2].second + 0.001,
+                longitude = locations[2].third - 0.002,
+                photos = listOf("dog_baset_3.1.jpg"),
+                createdAt = LocalDateTime.now().minusDays(1)
+            ))
+
+            // Dog 4: Dalmatinac - Fleki
+            lostPets.add(LostPet(
+                user = users[4],
+                petType = PetType.DOG,
+                title = "Fleki",
+                breed = "Dalmatinac",
+                color = "Beli sa crnim tačkama",
+                description = "Naš dalmatinac Fleki je pobegao tokom šetnje na Adi Ciganiliji. Ima klasičnu belu boju sa crnim tačkama. Fleki je vrlo energičan i voli da trči. Nosi zelenu ogrlicu sa našim kontakt informacijama. Čipovan je. Ako ga vidite, molimo vas da nas kontaktirate jer nam veoma nedostaje!",
+                gender = "MALE",
+                hasChip = true,
+                address = locations[3].first,
+                latitude = locations[3].second + 0.003,
+                longitude = locations[3].third + 0.001,
+                photos = listOf("dog_dalmatinac_4.1.jpg", "dog_dalmatinac_4.2.jpg"),
+                createdAt = LocalDateTime.now().minusDays(5)
+            ))
+
+            // Dog 5: Bokser - Boks (FOUND)
+            lostPets.add(LostPet(
+                user = users[5],
+                petType = PetType.DOG,
+                title = "Boks",
+                breed = "Bokser",
+                color = "Braon-beli",
+                description = "Naš bokser Boks je nestao iz dvorišta u Zemunu. Ima karakterističnu braon boju sa belim oznakama na grudima i šapama. Boks je vrlo zaštitničke prirode ali i izuzetno nežan sa decom. Nosi crnu ogrlicu i čipovan je. Molimo sve koji ga vide da nas kontaktiraju!",
+                gender = "MALE",
+                hasChip = true,
+                address = locations[4].first,
+                latitude = locations[4].second - 0.002,
+                longitude = locations[4].third + 0.003,
+                photos = listOf("dog_bokser_5.1.jpg", "dog_bokser_5.2.jpg"),
+                createdAt = LocalDateTime.now().minusDays(7),
+                found = true,
+                foundAt = LocalDateTime.now().minusDays(5)
+            ))
+
+            // Dog 6: Chow Chow - Lav
+            lostPets.add(LostPet(
+                user = users[6],
+                petType = PetType.DOG,
+                title = "Lav",
+                breed = "Chow Chow",
+                color = "Narandžasto-braon",
+                description = "Naš chow chow Lav je izgubljen u Košutnjaku tokom šetnje. Ima prelepu gustu narandžasto-braon dlaku koja ga čini sličnim lavu. Lav je vrlo nezavisan ali privržen porodici. Ima ljubičasti jezik što je karakteristika ove rase. Čipovan je i nosi plavu ogrlicu. Molimo za pomoć u pronalaženju!",
+                gender = "MALE",
+                hasChip = true,
+                address = locations[5].first,
+                latitude = locations[5].second + 0.002,
+                longitude = locations[5].third - 0.001,
+                photos = listOf("dog_chow_chow_6.1.jpg", "dog_chow_chow_6.2.jpg"),
+                createdAt = LocalDateTime.now().minusDays(4)
+            ))
+
+            // Dog 7: Chow Chow - Teddy
+            lostPets.add(LostPet(
+                user = users[7],
+                petType = PetType.DOG,
+                title = "Teddy",
+                breed = "Chow Chow",
+                color = "Crni",
+                description = "Naš crni chow chow Teddy je nestao iz dvorišta u Novom Beogradu. Za razliku od tipičnih narandžastih chow chowa, Teddy ima retku potpuno crnu boju. Ima gustu dlaku i ljubičasti jezik. Teddy je vrlo privreden porodici ali može biti rezervisan prema strancima. Čipovan je. Molimo za pomoć!",
+                gender = "MALE",
+                hasChip = true,
+                address = locations[6].first,
+                latitude = locations[6].second - 0.001,
+                longitude = locations[6].third + 0.002,
+                photos = listOf("dog_chow_chow_7.1(crne boje).jpg"),
+                createdAt = LocalDateTime.now().minusDays(3)
+            ))
+
+            // Dog 8: Haski - Luna
+            lostPets.add(LostPet(
+                user = users[8],
+                petType = PetType.DOG,
+                title = "Luna",
+                breed = "Haski",
+                color = "Crno-beli",
+                description = "Naša haski Luna je pobegla tokom šetnje na Voždovcu. Ima prelepe plave oči i crno-belu dlaku sa karakterističnim maskama oko očiju. Luna je vrlo energična i voli da trči. Nosi ružičastu ogrlicu sa našim kontaktom. Čipovana je. Ako je vidite, molimo vas da nas odmah pozovete!",
+                gender = "FEMALE",
+                hasChip = true,
+                address = locations[7].first,
+                latitude = locations[7].second + 0.001,
+                longitude = locations[7].third - 0.003,
+                photos = listOf("dog_haski_8.1.jpg", "dog_haski_8.2.jpg"),
+                createdAt = LocalDateTime.now().minusDays(6)
+            ))
+
+            // Dog 9: Hokaido - Hachi
+            lostPets.add(LostPet(
+                user = users[9],
+                petType = PetType.DOG,
+                title = "Hachi",
+                breed = "Hokaido",
+                color = "Svetlo braon sa belim",
+                description = "Naš hokaido Hachi je nestao na Vračaru. Ovo je retka japanska rasa, Hachi ima svetlo braon dlaku sa belim oznakama. Vrlo je inteligentan i privržen porodici. Hachi je smiren ali može biti rezervisan prema strancima. Čipovan je i nosi crvenu ogrlicu. Molimo za pomoć u pronalaženju našeg voljenog ljubimca!",
+                gender = "MALE",
+                hasChip = true,
+                address = locations[8].first,
+                latitude = locations[8].second - 0.002,
+                longitude = locations[8].third + 0.001,
+                photos = listOf("dog_hokaido_9.1.jpeg"),
+                createdAt = LocalDateTime.now().minusDays(9)
+            ))
+
+            // Dog 10: Čivava - Miki
+            lostPets.add(LostPet(
+                user = users[10],
+                petType = PetType.DOG,
+                title = "Miki",
+                breed = "Čivava",
+                color = "Crno-smeđi",
+                description = "Naš mali čivava Miki je izgubljen na Zvezdari. Ima crno-smeđu boju sa smeđim oznakama na nogama i iznad očiju. Miki je vrlo mali i tek teži 2 kilograma. Jako se plaši i verovatno se sakrio negde. Nosi malu plavu ogrlicu. Molimo vas, ako vidite malog crno-smeđeg psa, pozovite nas odmah!",
+                gender = "MALE",
+                hasChip = false,
+                address = locations[9].first,
+                latitude = locations[9].second + 0.002,
+                longitude = locations[9].third - 0.002,
+                photos = listOf("dog_chivava_10.1(crne boje).jpg", "dog_chivava_10.2.jpg"),
+                createdAt = LocalDateTime.now().minusDays(2)
+            ))
+
+            // Dog 11: Pekinezer - Princ (FOUND)
+            lostPets.add(LostPet(
+                user = users[11],
+                petType = PetType.DOG,
+                title = "Princ",
+                breed = "pekinezer",
+                color = "Crvenkasto braon",
+                description = "Naš pekinezer Princ je nestao u Dedinju. Ima prelepu dugu crvenkasto-braon dlaku i karakterističan spljošteni njušak. Princ je vrlo umiljat i voli pažnju. Ima problema sa disanjem što je tipično za ovu rasu, pa smo jako zabrinuti. Nosi zlatnu ogrlicu i čipovan je. Molimo za pomoć!",
+                gender = "MALE",
+                hasChip = true,
+                address = locations[10].first,
+                latitude = locations[10].second - 0.001,
+                longitude = locations[10].third + 0.003,
+                photos = listOf("dog_pekinezer_11.1.jpg", "dog_pekinezer_11.2.jpg"),
+                createdAt = LocalDateTime.now().minusDays(11),
+                found = true,
+                foundAt = LocalDateTime.now().minusDays(9)
+            ))
+
+            // Dog 12: Malmut - Rex
+            lostPets.add(LostPet(
+                user = users[12],
+                petType = PetType.DOG,
+                title = "Rex",
+                breed = "Malmut",
+                color = "Sivo-beli",
+                description = "Naš aljaski malmut Rex je pobegao tokom šetnje u Dorćolu. Rex je veliki pas sa gustom sivo-belom dlakom. Vrlo je prijateljski nastrojen prema svima i voli pažnju. Rex ima karakteristične oznake na glavi i gustu dlaku. Nosi crnu ogrlicu sa našim kontaktom i čipovan je. Molimo za pomoć u pronalaženju!",
+                gender = "MALE",
+                hasChip = true,
+                address = locations[11].first,
+                latitude = locations[11].second + 0.001,
+                longitude = locations[11].third - 0.001,
+                photos = listOf("dog_malmut_12.1.jpg", "dog_malmut_12.2.jpg"),
+                createdAt = LocalDateTime.now().minusDays(10)
+            ))
+
+            // MAČKE - 10 prijava
+
+            // Cat 1: Sfinks - Kleopatra
+            lostPets.add(LostPet(
+                user = users[13],
+                petType = PetType.CAT,
+                title = "Kleopatra",
+                breed = "Sfinks",
+                color = "Sivo-roze bez dlake",
+                description = "Naša sfinks mačka Kleopatra je pobegla kroz prozor na Banovom brdu. Kleopatra je potpuno bez dlake sa sivo-roze kožom. Vrlo je umiljata i voli toplinu. Nije navikla da bude napolju i sigurno joj je hladno. Ima zelene oči i velike uši. Molimo vas, ako je vidite, odmah nas kontaktirajte jer joj je potrebna posebna nega!",
+                gender = "FEMALE",
+                hasChip = true,
+                address = locations[12].first,
+                latitude = locations[12].second - 0.002,
+                longitude = locations[12].third + 0.001,
+                photos = listOf("cat_sfinks_1.1.jpg", "cat_sfinks_1.2.jpg"),
+                createdAt = LocalDateTime.now().minusDays(3)
+            ))
+
+            // Cat 2: Manks - Stumpy
+            lostPets.add(LostPet(
+                user = users[14],
+                petType = PetType.CAT,
+                title = "Stumpy",
+                breed = "Manks",
+                color = "Braon tabby sa belim",
+                description = "Naša manks mačka Stumpy je nestala u Rakovici. Stumpy ima jedinstvenu karakteristiku - potpuno je bez repa što je tipično za manks rasu. Ima braon tabby šaru sa belim oznakama. Vrlo je umiljata i obično prilazi ljudima. Stumpy je čipovana i nosi ružičastu ogrlicu. Molimo za pomoć!",
+                gender = "FEMALE",
+                hasChip = true,
+                address = locations[13].first,
+                latitude = locations[13].second + 0.001,
+                longitude = locations[13].third - 0.002,
+                photos = listOf("cat_manks_2.1.jpg", "cat_manks_2.2.jpg"),
+                createdAt = LocalDateTime.now().minusDays(7)
+            ))
+
+            // Cat 3: Manks - Maza (FOUND)
+            lostPets.add(LostPet(
+                user = users[15],
+                petType = PetType.CAT,
+                title = "Maza",
+                breed = "Manks",
+                color = "Belo-braon",
+                description = "Naša mačka Maza je pobegla sa terase na Slaviji. Maza je manks rasa, što znači da nema rep. Ima prelepu belu boju sa braon flekama. Vrlo je plašljiva i verovatno se sakrila negde. Čipovana je. Ako je vidite, molimo vas da pokušate da je privučete hranom i kontaktirajte nas. Jako nam nedostaje!",
+                gender = "FEMALE",
+                hasChip = true,
+                address = locations[14].first,
+                latitude = locations[14].second - 0.001,
+                longitude = locations[14].third + 0.003,
+                photos = listOf("cat_manks_3.1.jpg"),
+                createdAt = LocalDateTime.now().minusDays(13),
+                found = true,
+                foundAt = LocalDateTime.now().minusDays(11)
+            ))
+
+            // Cat 4: Korat - Sivi
+            lostPets.add(LostPet(
+                user = users[16],
+                petType = PetType.CAT,
+                title = "Sivi",
+                breed = "Korat",
+                color = "Sivo-plava",
+                description = "Naš korat mačak Sivi je nestao u Pionirskom parku. Ima prelepu srebrnastu sivo-plavu dlaku i zelene oči koje svetle. Korat je retka tajlandska rasa. Sivi je vrlo inteligentan i radoznao. Čipovan je i nosi sivu ogrlicu. Ako ga vidite, molimo vas da nas odmah kontaktirate!",
+                gender = "MALE",
+                hasChip = true,
+                address = locations[15].first,
+                latitude = locations[15].second + 0.002,
+                longitude = locations[15].third - 0.001,
+                photos = listOf("cat_korat_4.1.jpg", "cat_korat_4.2.jpg"),
+                createdAt = LocalDateTime.now().minusDays(5)
+            ))
+
+            // Cat 5: Korat - Luna
+            lostPets.add(LostPet(
+                user = users[17],
+                petType = PetType.CAT,
+                title = "Luna",
+                breed = "Korat",
+                color = "Sivo-plava",
+                description = "Naša korat mačka Luna je izgubljena na Ušću. Luna ima karakterističnu srebrnastu sivo-plavu dlaku i prelepe zelene oči. Vrlo je privržena porodici ali plašljiva prema strancima. Luna je čipovana. Molimo vas, ako je vidite, pokušajte da je privučete i pozovite nas odmah!",
+                gender = "FEMALE",
+                hasChip = true,
+                address = locations[16].first,
+                latitude = locations[16].second - 0.002,
+                longitude = locations[16].third + 0.002,
+                photos = listOf("cat_korat_5.1.jpg"),
+                createdAt = LocalDateTime.now().minusDays(4)
+            ))
+
+            // Cat 6: Savanah - Simba
+            lostPets.add(LostPet(
+                user = users[18],
+                petType = PetType.CAT,
+                title = "Simba",
+                breed = "Savanah",
+                color = "Zlatno-braon sa crnim pegama",
+                description = "Naš savanah mačak Simba je pobegao sa Bulevara kralja Aleksandra. Simba je egzotična rasa koja izgleda kao mali leopard - ima zlatno-braonu dlaku sa crnim pegama. Vrlo je visok i atletski građen. Simba je čipovan i nosi zelenu ogrlicu. Ovo je veoma retka i skupa rasa, molimo za pomoć u pronalaženju!",
+                gender = "MALE",
+                hasChip = true,
+                address = locations[17].first,
+                latitude = locations[17].second + 0.001,
+                longitude = locations[17].third - 0.003,
+                photos = listOf("cat_savanah_6.1.jpeg", "cat_savanah_6.2.jpg"),
+                createdAt = LocalDateTime.now().minusDays(6)
+            ))
+
+            // Cat 7: Radgol - Bella
+            lostPets.add(LostPet(
+                user = users[19],
+                petType = PetType.CAT,
+                title = "Bella",
+                breed = "Radgol",
+                color = "Belo-braon",
+                description = "Naša ragdoll mačka Bella je nestala na Trgu Republike. Bella ima prelepu dugu belu dlaku sa braon poentama na ušima, njušci i šapama. Ragdoll mačke su poznate po tome što postanu potpuno opuštene kada ih podignete. Bella je vrlo mirna i umiljata. Čipovana je. Molimo za pomoć!",
+                gender = "FEMALE",
+                hasChip = true,
+                address = locations[18].first,
+                latitude = locations[18].second - 0.001,
+                longitude = locations[18].third + 0.001,
+                photos = listOf("cat_radgol_7.1.jpg", "cat_radgol_7.2.jpg"),
+                createdAt = LocalDateTime.now().minusDays(8)
+            ))
+
+            // Cat 8: Radgol - Dušan
+            lostPets.add(LostPet(
+                user = users[20],
+                petType = PetType.CAT,
+                title = "Dušan",
+                breed = "Radgol",
+                color = "Sivo-beli",
+                description = "Naš ragdoll mačak Dušan je izgubljen na Terazijama. Za razliku od tipičnih ragdoll mačaka, Dušan ima sivo-belu boju sa dugom mekom dlakom. Vrlo je umiljat i voli da bude nošen. Dušan je čipovan i nosi plavu ogrlicu sa našim kontaktom. Ako ga vidite, molimo vas da nas pozovete!",
+                gender = "MALE",
+                hasChip = true,
+                address = locations[19].first,
+                latitude = locations[19].second + 0.002,
+                longitude = locations[19].third - 0.002,
+                photos = listOf("cat_radgol_8.1.jpg", "cat_radgol_8.2.jpg"),
+                createdAt = LocalDateTime.now().minusDays(9)
+            ))
+
+            // Cat 9: Peterbald - Pharaoh
+            lostPets.add(LostPet(
+                user = users[1],
+                petType = PetType.CAT,
+                title = "Pharaoh",
+                breed = "Peterbald",
+                color = "Siva bez dlake",
+                description = "Naš peterbald mačak Pharaoh je nestao u Skadarliji. Pharaoh je egzotična ruska rasa bez dlake, ima sivu kožu i izuzetno velike uši. Vrlo je elegantan i atletski građen. Nije navikao da bude napolju i potrebna mu je toplina. Čipovan je. Molimo vas, ako vidite mačku bez dlake, odmah nas kontaktirajte!",
+                gender = "MALE",
+                hasChip = true,
+                address = locations[20].first,
+                latitude = locations[20].second - 0.002,
+                longitude = locations[20].third + 0.001,
+                photos = listOf("cat_peterbald_9_1.jpeg", "cat_peterbald_9.2.jpg"),
+                createdAt = LocalDateTime.now().minusDays(2)
+            ))
+
+            // Cat 10: Burmila - Snežana
+            lostPets.add(LostPet(
+                user = users[2],
+                petType = PetType.CAT,
+                title = "Snežana",
+                breed = "Burmila",
+                color = "Bela",
+                description = "Naša burmila mačka Snežana je pobegla sa Savskog nasipa. Snežana ima potpuno belu dlaku i zelene oči. Burmila je retka rasa nastala ukrštanjem burme i činčile. Vrlo je umiljata i druželjubiva. Snežana je čipovana i nosi belu ogrlicu sa srebrnim privescima. Molimo za pomoć u pronalaženju!",
+                gender = "FEMALE",
+                hasChip = true,
+                address = locations[21].first,
+                latitude = locations[21].second + 0.001,
+                longitude = locations[21].third - 0.003,
+                photos = listOf("cat_burmila_10.1.jpg", "cat_burmila_10.2.jpg"),
+                createdAt = LocalDateTime.now().minusDays(1)
+            ))
+
+            // OSTALI - 6 prijava
+
+            // Other 1: Nimfa papagaj - Pera
+            lostPets.add(LostPet(
+                user = users[3],
+                petType = PetType.OTHER,
+                title = "Pera",
+                breed = null,
+                color = "Sivo-žuto-narandžasta",
+                description = "Naš nimfa papagaj Pera je odleteo kroz otvoreni prozor na Cvijićevoj ulici. Pera ima sivo telo, žutu glavu sa narandžastim flekama na obrazima i karakteristični ćubasti vrh na glavi. Zna da zviždi nekoliko melodija. Vrlo je privreden i dolazi kada ga zovemo po imenu. Molimo sve koji ga vide da nas kontaktiraju!",
+                gender = "MALE",
+                hasChip = false,
+                address = locations[22].first,
+                latitude = locations[22].second - 0.001,
+                longitude = locations[22].third + 0.002,
+                photos = listOf("other_nimfa_papagaj_1.1.jpg"),
+                createdAt = LocalDateTime.now().minusDays(4)
+            ))
+
+            // Other 2: Kakadu papagaj - Beli
+            lostPets.add(LostPet(
+                user = users[4],
+                petType = PetType.OTHER,
+                title = "Beli",
+                breed = null,
+                color = "Beli sa žutim",
+                description = "Naš kakadu papagaj Beli je odleteo sa terase na Autokomandi. Beli je veliki beli papagaj sa preleepim žutim ćubastim vrhom na glavi. Jako je glasno cvrkuće i zna da izgovori nekoliko reči uključujući svoje ime. Beli je vrlo druželjubiv i voli pažnju. Molimo za pomoć u pronalaženju našeg voljenog papagaja!",
+                gender = "MALE",
+                hasChip = false,
+                address = locations[23].first,
+                latitude = locations[23].second + 0.002,
+                longitude = locations[23].third - 0.001,
+                photos = listOf("other_kakadu_papagaj_2.1.jpg"),
+                createdAt = LocalDateTime.now().minusDays(7)
+            ))
+
+            // Other 3: Morsko prase - Bubica
+            lostPets.add(LostPet(
+                user = users[5],
+                petType = PetType.OTHER,
+                title = "Bubica",
+                breed = null,
+                color = "Braon-beli",
+                description = "Naše morsko prase Bubica je pobeglo iz kaveza na Senjaku. Bubica ima braon-belu dlaku sa specifičnom šarom oko očiju. Vrlo je plašljivo i verovatno se sakrilo negde. Morska prasad nisu brza, pa se sigurno nije daleko odmakla. Ako je vidite, molimo vas da je uhvatite i kontaktirate nas!",
+                gender = "FEMALE",
+                hasChip = false,
+                address = locations[24].first,
+                latitude = locations[24].second - 0.002,
+                longitude = locations[24].third + 0.003,
+                photos = listOf("other_morsko_prase_3.1.JPG"),
+                createdAt = LocalDateTime.now().minusDays(2)
+            ))
+
+            // Other 4: Hrčak - Hopper
+            lostPets.add(LostPet(
+                user = users[6],
+                petType = PetType.OTHER,
+                title = "Hopper",
+                breed = null,
+                color = "Svetlo narandžasti",
+                description = "Naš hrčak Hopper je pobegao iz kaveza na Paliluli. Hopper ima svetlo narandžastu dlaku i vrlo je mali. Verovatno se sakrio negde u blizini jer hrčci ne odlaze daleko. Hopper je very aktivan noću. Ako ga vidite, molimo vas da pokušate da ga uhvatite pažljivo i kontaktirajte nas!",
+                gender = "MALE",
+                hasChip = false,
+                address = locations[25].first,
+                latitude = locations[25].second + 0.001,
+                longitude = locations[25].third - 0.002,
+                photos = listOf("other_hrcak_4.1.jpg"),
+                createdAt = LocalDateTime.now().minusDays(1)
+            ))
+
+            // Other 5: Hrčak - Mali
+            lostPets.add(LostPet(
+                user = users[7],
+                petType = PetType.OTHER,
+                title = "Mali",
+                breed = null,
+                color = "Zlatno-braon",
+                description = "Naš hrčak Mali je nestao tokom čišćenja kaveza na Crvenom krstu. Mali ima zlatno-braon dlaku i karakteristične velike obraze u kojima čuva hranu. Vrlo je miran i prijazan. Molimo vas da proverite svoje garaže i podrume jer se hrčci često sakrivaju na tamnim mestima. Ako ga vidite, kontaktirajte nas!",
+                gender = "MALE",
+                hasChip = false,
+                address = locations[26].first,
+                latitude = locations[26].second - 0.001,
+                longitude = locations[26].third + 0.001,
+                photos = listOf("other_hrcak_5.1.jpg"),
+                createdAt = LocalDateTime.now().minusDays(3)
+            ))
+
+            // Other 6: Zec - Zeka
+            lostPets.add(LostPet(
+                user = users[8],
+                petType = PetType.OTHER,
+                title = "Zeka",
+                breed = null,
+                color = "Sivo-braon",
+                description = "Naš kućni zec Zeka je pobegao iz dvorišta u Mirijevu. Zeka ima sivo-braonu dlaku i duge uši. Vrlo je plašljiv i verovatno se sakrio u nečijem dvorištu ili parku. Zečevi su brzi ali ne odlaze daleko od poznatog terena. Ako vidite zeca, molimo vas da pokušate da ga uhvatite pažljivo i kontaktirajte nas!",
+                gender = "MALE",
+                hasChip = false,
+                address = locations[27].first,
+                latitude = locations[27].second + 0.002,
+                longitude = locations[27].third - 0.003,
+                photos = listOf("other_zec_6.1.jpg"),
+                createdAt = LocalDateTime.now().minusDays(5)
+            ))
+
             lostPetRepository.saveAll(lostPets)
             logger.info("Uspešno kreirano ${lostPets.size} testnih podataka za nestale ljubimce")
+            logger.info("  - Psi: 12 prijava (2 pronađena)")
+            logger.info("  - Mačke: 10 prijava (1 pronađena)")
+            logger.info("  - Ostali ljubimci: 6 prijava")
         }
     }
-} 
+}
